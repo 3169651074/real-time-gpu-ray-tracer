@@ -243,6 +243,9 @@ namespace renderer {
                 w, h, SDL_WINDOW_OPENGL);
         SDL_GLContext context = SDL_GL_CreateContext(window);
 
+        //禁用垂直同步
+        SDL_GL_SetSwapInterval(0);
+
         //OGL
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
             SDL_Log("Failed to init GLAD!"); return;
@@ -348,9 +351,18 @@ namespace renderer {
 
         constexpr double MOUSE_SENSITIVITY = 0.001;
         constexpr double PITCH_LIMIT_RADIAN = PI / 2.1;
-        constexpr double MOVE_SPEED = 0.5;
+        constexpr double MOVE_SPEED = 0.1;
+
+        constexpr double TARGET_FPS = 70.0;
+        constexpr auto TARGET_FRAME_DURATION = std::chrono::microseconds(static_cast<Sint64>(1000000.0 / TARGET_FPS));
+        constexpr auto SLEEP_MARGIN = std::chrono::milliseconds(2);
+
+        std::chrono::time_point<std::chrono::steady_clock> frameStartTime;
 
         while (!quit) {
+            //帧开始时间点
+            frameStartTime = std::chrono::steady_clock::now();
+
             int dx = 0;
             int dy = 0;
             Point3 newCameraCenter = pin_camera->cameraCenter;
@@ -488,6 +500,26 @@ namespace renderer {
             glBindVertexArray(VAO);
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
             SDL_GL_SwapWindow(window);
+
+            //计算本帧耗时
+            const auto frameEndTime = std::chrono::steady_clock::now();
+            const auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEndTime - frameStartTime);
+            const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
+
+            //如果本帧工作时间小于目标帧时长，则需要等待
+            if (workTime < TARGET_FRAME_DURATION) {
+                const auto timeToWait = TARGET_FRAME_DURATION - workTime;
+
+                //1. 粗略休眠
+                //如果需要等待的时间大于设定的安全边界，就先 sleep
+                if (timeToWait > SLEEP_MARGIN) {
+                    std::this_thread::sleep_for(timeToWait - SLEEP_MARGIN);
+                }
+
+                //2. 精确自旋
+                //在最后一点时间里，不断查询时间，直到达到目标
+                while (std::chrono::steady_clock::now() - frameStartTime < TARGET_FRAME_DURATION) {}
+            }
         }
 
         //释放参数结构体
