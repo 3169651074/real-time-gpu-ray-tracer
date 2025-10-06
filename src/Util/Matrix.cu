@@ -2,11 +2,11 @@
 
 namespace renderer {
     //辅助函数
-    __host__ __device__ int eliminateBottomElements(double matrixData[5][9]) {
+    __host__ __device__ int eliminateBottomElements(float matrixData[5][9]) {
         //前向消元
         for (size_t i = 1; i < 5; i++) {
             //主元选择
-            double main = abs(matrixData[i][i]);
+            float main = abs(matrixData[i][i]);
             size_t maxRow = i;
             //选取当前行及以下行最大的主元
             for (size_t p = i + 1; p < 5; p++) {
@@ -21,7 +21,7 @@ namespace renderer {
             }
             if (maxRow != i) {
                 //交换第maxRow行和第i行
-                double tmp[9] {};
+                float tmp[9] {};
                 for (size_t j = 1; j < 9; j++) {
                     tmp[j] = matrixData[maxRow][j];
                 }
@@ -34,7 +34,7 @@ namespace renderer {
             }
             //操作当前行（i）的下方所有行
             for (size_t j = i + 1; j < 5; j++) {
-                const double factor = matrixData[j][i] / matrixData[i][i];
+                const float factor = matrixData[j][i] / matrixData[i][i];
                 //操作一行
                 for (size_t k = i; k < 9; k++) {
                     matrixData[j][k] -= factor * matrixData[i][k];
@@ -43,7 +43,7 @@ namespace renderer {
         }
         return 0;
     }
-    __host__ __device__ int eliminateTopElements(double matrixData[5][9]) {
+    __host__ __device__ int eliminateTopElements(float matrixData[5][9]) {
         for (size_t i = 4; i >= 1; i--) {
             if (MathHelper::floatValueNearZero(matrixData[i][i])) {
                 if (!MathHelper::floatValueNearZero(matrixData[i][8])) {
@@ -53,7 +53,7 @@ namespace renderer {
                 }
             }
             //计算归一化系数。增广部分的所有元素都需要进行缩放
-            double factor = 1 / matrixData[i][i];
+            float factor = 1.0f / matrixData[i][i];
             for (size_t p = i; p < 9; p++) {
                 matrixData[i][p] *= factor;
             }
@@ -75,7 +75,7 @@ namespace renderer {
         //逐个元素赋值
         for (size_t i = 1; i <= ret.row; i++) {
             for (size_t j = 1; j <= ret.col; j++) {
-                double sum = 0.0;
+                float sum = 0.0f;
                 for (size_t n = 1; n <= col; n++) {
                     sum += data[i][n] * right.data[n][j];
                 }
@@ -103,14 +103,14 @@ namespace renderer {
          * 构造同阶单位矩阵，并将其合并到参数矩阵的右侧
          * 由于Matrix类的data限定大小为4x4，因此使用临时数组代替对象
          */
-        double operateMatrix[5][9] {};
+        float operateMatrix[5][9] {};
         for (size_t i = 1; i < 5; i++) {
             //将原矩阵数据填入左半部分
             for (size_t j = 1; j < 5; j++) {
                 operateMatrix[i][j] = data[i][j];
             }
             //将右半部分设置为单位矩阵
-            operateMatrix[i][4 + i] = 1.0;
+            operateMatrix[i][4 + i] = 1.0f;
         }
 
         //对合并后的矩阵进行两次消元
@@ -152,96 +152,96 @@ namespace renderer {
     }
 
     //矩阵数乘除
-    __host__ __device__ void Matrix::operator*=(double num) {
+    __host__ __device__ void Matrix::operator*=(float num) {
         for (size_t i = 0; i < 5; i++) {
             for (size_t j = 0; j < 5; j++) {
                 data[i][j] *= num;
             }
         }
     }
-    __host__ __device__ Matrix Matrix::operator*(double num) const {
+    __host__ __device__ Matrix Matrix::operator*(float num) const {
         Matrix ret = *this; ret *= num; return ret;
     }
-    __host__ __device__ Matrix operator*(double num, const Matrix & obj) {
+    __host__ __device__ Matrix operator*(float num, const Matrix & obj) {
         return obj * num;
     }
-    __host__ __device__ void Matrix::operator/=(double num) {
+    __host__ __device__ void Matrix::operator/=(float num) {
         for (size_t i = 0; i < 5; i++) {
             for (size_t j = 0; j < 5; j++) {
                 data[i][j] /= num;
             }
         }
     }
-    __host__ __device__ Matrix Matrix::operator/(double num) const {
+    __host__ __device__ Matrix Matrix::operator/(float num) const {
         Matrix ret = *this; ret /= num; return ret;
     }
-    __host__ __device__ Matrix operator/(double num, const Matrix & obj) {
+    __host__ __device__ Matrix operator/(float num, const Matrix & obj) {
         return obj / num;
     }
 
     //构造变换矩阵
-    Matrix Matrix::constructShiftMatrix(const std::array<double, 3> & shift) {
+    Matrix Matrix::constructShiftMatrix(const std::array<float, 3> & shift) {
         return {
                 {
-                    0.0, 0.0, 0.0, 0.0, 0.0,
-                    0.0, 1.0, 0.0, 0.0, shift[0],
-                    0.0, 0.0, 1.0, 0.0, shift[1],
-                    0.0, 0.0, 0.0, 1.0, shift[2],
-                    0.0, 0.0, 0.0, 0.0, 1.0
+                    0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                    0.0f, 1.0f, 0.0f, 0.0f, shift[0],
+                    0.0f, 0.0f, 1.0f, 0.0f, shift[1],
+                    0.0f, 0.0f, 0.0f, 1.0f, shift[2],
+                    0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                 }, 4, 4
         };
     }
 
-    Matrix Matrix::constructScaleMatrix(const std::array<double, 3> & scale) {
+    Matrix Matrix::constructScaleMatrix(const std::array<float, 3> & scale) {
         return {
                 {
-                        0.0, 0.0, 0.0, 0.0, 0.0,
-                        0.0, scale[0], 0.0, 0.0, 0.0,
-                        0.0, 0.0, scale[1], 0.0, 0.0,
-                        0.0, 0.0, 0.0, scale[2], 0.0,
-                        0.0, 0.0, 0.0, 0.0, 1.0
+                        0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                        0.0f, scale[0], 0.0f, 0.0f, 0.0f,
+                        0.0f, 0.0f, scale[1], 0.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f, scale[2], 0.0f,
+                        0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                 }, 4, 4
         };
     }
 
-    Matrix Matrix::constructRotateMatrix(double degree, int axis) {
-        const double theta = MathHelper::degreeToRadian(degree);
+    Matrix Matrix::constructRotateMatrix(float degree, int axis) {
+        const float theta = MathHelper::degreeToRadian(degree);
         switch (axis) {
             case 0:
                 return {
                         {
-                                0.0, 0.0, 0.0, 0.0, 0.0,
-                                0.0, 1.0, 0.0, 0.0, 0.0,
-                                0.0, 0.0, cos(theta), -sin(theta), 0.0,
-                                0.0, 0.0, sin(theta), cos(theta), 0.0,
-                                0.0, 0.0, 0.0, 0.0, 1.0
+                                0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                                0.0f, 0.0f, cos(theta), -sin(theta), 0.0f,
+                                0.0f, 0.0f, sin(theta), cos(theta), 0.0f,
+                                0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                         }, 4, 4
                 };
             case 1:
                 return {
                         {
-                                0.0, 0.0, 0.0, 0.0, 0.0,
-                                0.0, cos(theta), 0.0, sin(theta), 0.0,
-                                0.0, 0.0, 1.0, 0.0, 0.0,
-                                0.0, -sin(theta), 0.0, cos(theta), 0.0,
-                                0.0, 0.0, 0.0, 0.0, 1.0
+                                0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                0.0f, cos(theta), 0.0f, sin(theta), 0.0f,
+                                0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                                0.0f, -sin(theta), 0.0f, cos(theta), 0.0f,
+                                0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                         }, 4, 4
                 };
             case 2:
                 return {
                         {
-                                0.0, 0.0, 0.0, 0.0, 0.0,
-                                0.0, cos(theta), -sin(theta), 0.0, 0.0,
-                                0.0, sin(theta), cos(theta), 0.0, 0.0,
-                                0.0, 0.0, 0.0, 1.0, 0.0,
-                                0.0, 0.0, 0.0, 0.0, 1.0
+                                0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                0.0f, cos(theta), -sin(theta), 0.0f, 0.0f,
+                                0.0f, sin(theta), cos(theta), 0.0f, 0.0f,
+                                0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                                0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                         }, 4, 4
                 };
             default: return {};
         }
     }
 
-    Matrix Matrix::constructRotateMatrix(const std::array<double, 3> & rotate) {
+    Matrix Matrix::constructRotateMatrix(const std::array<float, 3> & rotate) {
         const auto mx = constructRotateMatrix(rotate[0], 0);
         const auto my = constructRotateMatrix(rotate[1], 1);
         const auto mz = constructRotateMatrix(rotate[2], 2);

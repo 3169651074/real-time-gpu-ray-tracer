@@ -20,7 +20,7 @@ namespace renderer {
      *   求转置矩阵
      */
     typedef struct Matrix {
-        double data[5][5];
+        float data[5][5];
         size_t row, col;
 
         // ====== 矩阵转换 ======
@@ -28,11 +28,11 @@ namespace renderer {
         __host__ __device__ static Matrix toMatrix(const Vec3 & vec) {
             return {
                     {
-                            {0.0, 0.0},
-                            {0.0, vec.x},
-                            {0.0, vec.y},
-                            {0.0, vec.z},
-                            {0.0, 0.0}
+                            {0.0f, 0.0f},
+                            {0.0f, vec.x},
+                            {0.0f, vec.y},
+                            {0.0f, vec.z},
+                            {0.0f, 0.0f}
                     },
                     4, 1
             };
@@ -41,11 +41,11 @@ namespace renderer {
         __host__ __device__ static Matrix toMatrix(const Point3 & p) {
             return {
                     {
-                            {0.0, 0.0},
-                            {0.0, p.x},
-                            {0.0, p.y},
-                            {0.0, p.z},
-                            {0.0, 1.0}
+                            {0.0f, 0.0f},
+                            {0.0f, p.x},
+                            {0.0f, p.y},
+                            {0.0f, p.z},
+                            {0.0f, 1.0f}
                     },
                     4, 1
             };
@@ -66,12 +66,12 @@ namespace renderer {
         __host__ __device__ Matrix operator-(const Matrix & obj) const;
 
         //矩阵数乘除
-        __host__ __device__ void operator*=(double num);
-        __host__ __device__ Matrix operator*(double num) const;
-        __host__ __device__ friend Matrix operator*(double num, const Matrix & obj);
-        __host__ __device__ void operator/=(double num);
-        __host__ __device__ Matrix operator/(double num) const;
-        __host__ __device__ friend Matrix operator/(double num, const Matrix & obj);
+        __host__ __device__ void operator*=(float num);
+        __host__ __device__ Matrix operator*(float num) const;
+        __host__ __device__ friend Matrix operator*(float num, const Matrix & obj);
+        __host__ __device__ void operator/=(float num);
+        __host__ __device__ Matrix operator/(float num) const;
+        __host__ __device__ friend Matrix operator/(float num, const Matrix & obj);
 
         //矩阵乘法，返回新的矩阵
         __host__ __device__ Matrix operator*(const Matrix & obj) const;
@@ -83,10 +83,10 @@ namespace renderer {
         __host__ __device__ Matrix transpose() const;
 
         //构造变换矩阵
-        static Matrix constructScaleMatrix(const std::array<double, 3> & scale);
-        static Matrix constructShiftMatrix(const std::array<double, 3> & shift);
-        static Matrix constructRotateMatrix(const std::array<double, 3> & rotate);
-        static Matrix constructRotateMatrix(double degree, int axis);
+        static Matrix constructScaleMatrix(const std::array<float, 3> & scale);
+        static Matrix constructShiftMatrix(const std::array<float, 3> & shift);
+        static Matrix constructRotateMatrix(const std::array<float, 3> & rotate);
+        static Matrix constructRotateMatrix(float degree, int axis);
 
         std::string toString() const;
     } Matrix;

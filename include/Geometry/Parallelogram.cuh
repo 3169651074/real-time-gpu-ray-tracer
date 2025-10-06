@@ -15,9 +15,9 @@ namespace renderer {
         Vec3 u, v;
 
         //面积，所在平面法向量和平面方程的常数项参数d
-        double area;
+        float area;
         Vec3 normalVector;
-        double d;
+        float d;
 
         //材质索引
         MaterialType materialType;
@@ -31,7 +31,7 @@ namespace renderer {
             this->normalVector = Vec3::cross(u, v);
             this->area = normalVector.length();
             this->normalVector.unitize();
-            double sum = 0.0;
+            float sum = 0.0;
             for (int i = 0; i < 3; i++) {
                 sum += normalVector[i] * q[i];
             }
@@ -43,7 +43,7 @@ namespace renderer {
         BoundingBox constructBoundingBox() const;
 
         Point3 centroid() const {
-            return q + 0.5 * u + 0.5 * v;
+            return q + 0.5f * u + 0.5f * v;
         }
 
         size_t objectPrimitiveCount() const {

@@ -10,9 +10,9 @@ namespace renderer {
             for (int j = 0; j < 2; j++) {
                 for (int k = 0; k < 2; k++) {
                     //取出每个顶点的坐标
-                    const double x = i * range[0].max + (1.0 - i) * range[0].min;
-                    const double y = j * range[1].max + (1.0 - j) * range[1].min;
-                    const double z = k * range[2].max + (1.0 - k) * range[2].min;
+                    const float x = i * range[0].max + (1.0f - i) * range[0].min;
+                    const float y = j * range[1].max + (1.0f - j) * range[1].min;
+                    const float z = k * range[2].max + (1.0f - k) * range[2].min;
 
                     //计算变换后的坐标
                     const auto matrixPoint = Matrix::toMatrix(Point3{x, y, z});
@@ -31,15 +31,15 @@ namespace renderer {
         return {min, max};
     }
 
-    __device__ bool BoundingBox::hit(const Ray & ray, const Range & checkRange, double & t) const {
+    __device__ bool BoundingBox::hit(const Ray & ray, const Range & checkRange, float & t) const {
         const Point3 & rayOrigin = ray.origin;
         const Vec3 & rayDirection = ray.direction;
 
         Range currentRange(checkRange);
         for (Uint32 axis = 0; axis < 3; axis++) {
             const Range & axisRange = range[axis];
-            const double q = rayOrigin[axis];
-            const double d = rayDirection[axis];
+            const float q = rayOrigin[axis];
+            const float d = rayDirection[axis];
 
             //光线和包围盒平行
             if (abs(d) < FLOAT_ZERO_VALUE) {
@@ -50,8 +50,8 @@ namespace renderer {
             }
 
             //计算光在当前轴和边界的两个交点
-            double t1 = (axisRange.min - q) / d;
-            double t2 = (axisRange.max - q) / d;
+            float t1 = (axisRange.min - q) / d;
+            float t2 = (axisRange.max - q) / d;
 
             //将currentRange限制到这两个交点的范围内
             if (t1 < t2) {

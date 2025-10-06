@@ -63,17 +63,17 @@ int main(int argc, char * argv[]) {
 
     //构建实例列表
     pin_instances[0] = Instance(PrimitiveType::SPHERE, 0,
-                                std::array<double, 3>{},
-                                std::array<double, 3>{0.0, -1000.0, 0.0},
-                                std::array<double, 3>{1.0, 1.0, 1.0});
+                                std::array<float, 3>{},
+                                std::array<float, 3>{0.0, -1000.0, 0.0},
+                                std::array<float, 3>{1.0, 1.0, 1.0});
     pin_instances[1] = Instance(PrimitiveType::SPHERE, 1,
-                                std::array<double, 3>{},
-                                std::array<double, 3>{0.0, 2.0, 0.0},
-                                std::array<double, 3>{1.0, 1.0, 1.0});
+                                std::array<float, 3>{},
+                                std::array<float, 3>{0.0, 2.0, 0.0},
+                                std::array<float, 3>{1.0, 1.0, 1.0});
     pin_instances[2] = Instance(PrimitiveType::PARALLELOGRAM, 0,
-                                std::array<double, 3>{0.0, 0.0, 0.0},
-                                std::array<double, 3>{-5.0, 0.0, 0.0},
-                                std::array<double, 3>{1.0, 1.0, 1.0});
+                                std::array<float, 3>{0.0, 0.0, 0.0},
+                                std::array<float, 3>{-5.0, 0.0, 0.0},
+                                std::array<float, 3>{1.0, 1.0, 1.0});
 
     //构建加速结构
     const auto asBuildResult = Renderer::buildAccelerationStructure(geometryDataWithPinPtr, pin_instances, instanceCount);

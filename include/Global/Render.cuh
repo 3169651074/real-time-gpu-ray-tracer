@@ -35,12 +35,12 @@ namespace renderer {
         Color3 backgroundColor;
         Point3 cameraCenter;
         Point3 cameraTarget;
-        double fov;
+        float fov;
 
         //视口
         Vec3 upDirection;
-        double viewPortWidth;
-        double viewPortHeight;
+        float viewPortWidth;
+        float viewPortHeight;
         Vec3 cameraU, cameraV, cameraW;
         Vec3 viewPortX, viewPortY;
         Vec3 viewPortPixelDx, viewPortPixelDy;
@@ -48,12 +48,12 @@ namespace renderer {
         Point3 pixelOrigin;
 
         //采样
-        double focusDiskRadius;
-        double focusDistance;
-        double sampleRange;
+        float focusDiskRadius;
+        float focusDistance;
+        float sampleRange;
         size_t sampleCount;
         size_t sqrtSampleCount;
-        double reciprocalSqrtSampleCount;
+        float reciprocalSqrtSampleCount;
         size_t rayTraceDepth;
     } Camera;
 

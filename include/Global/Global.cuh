@@ -43,9 +43,9 @@
 
 namespace renderer {
     // ====== 数值常量 ======
-    constexpr double FLOAT_ZERO_VALUE = 1e-10;
-    constexpr double INFINITY = std::numeric_limits<double>::infinity();
-    constexpr double PI = M_PI;
+    constexpr float FLOAT_ZERO_VALUE = 1e-6f;
+    constexpr float INFINITY = std::numeric_limits<float>::infinity();
+    constexpr float PI = M_PI;
 
     // ====== 数学工具函数 ======
     class MathHelper {
@@ -53,22 +53,22 @@ namespace renderer {
 #ifdef CUDA
         __host__ __device__
 #endif
-        static double degreeToRadian(double degree) {
-            return degree * PI / 180.0;
+        static float degreeToRadian(float degree) {
+            return degree * PI / 180.0f;
         }
 
 #ifdef CUDA
         __host__ __device__
 #endif
-        static double radianToDegree(double radian) {
-            return radian * 180.0 / PI;
+        static float radianToDegree(float radian) {
+            return radian * 180.0f / PI;
         }
 
         //判断浮点数是否接近于0
 #ifdef CUDA
         __host__ __device__
 #endif
-        static bool floatValueNearZero(double val) {
+        static bool floatValueNearZero(float val) {
             return abs(val) < FLOAT_ZERO_VALUE;
         }
 
@@ -76,7 +76,7 @@ namespace renderer {
 #ifdef CUDA
         __host__ __device__
 #endif
-        static bool floatValueEquals(double v1, double v2) {
+        static bool floatValueEquals(float v1, float v2) {
             return abs(v1 - v2) < FLOAT_ZERO_VALUE;
         }
     };
@@ -86,25 +86,25 @@ namespace renderer {
     private:
         static inline std::random_device rd;
         static inline std::mt19937 generator{rd()};
-        static inline std::uniform_real_distribution<> distribution{0.0, 1.0};
+        static inline std::uniform_real_distribution<float> distribution{0.0f, 1.0f};
 
     public:
         //生成一个[0, 1)的浮点随机数
-        static double randomDouble() {
+        static float randomDouble() {
             return distribution(generator);
         }
 #ifdef CUDA
-        __device__ static double randomDouble(curandState * state) {
-            return curand_uniform_double(state);
+        __device__ static float randomDouble(curandState * state) {
+            return curand_uniform(state);
         }
 #endif
 
         //生成一个[min, max)之间的浮点随机数
-        static double randomDouble(double min, double max) {
+        static float randomDouble(float min, float max) {
             return min + (max - min) * randomDouble();
         }
 #ifdef CUDA
-        __device__ static double randomDouble(curandState * state, double min, double max) {
+        __device__ static float randomDouble(curandState * state, float min, float max) {
             return min + (max - min) * randomDouble(state);
         }
 #endif
@@ -118,7 +118,7 @@ namespace renderer {
 #ifdef CUDA
         template<typename T>
         __device__ static T randomInteger(curandState * state, T min, T max) {
-            const double val = min + ((max + 1) - min) * randomDouble(state);
+            const float val = min + ((max + 1) - min) * randomDouble(state);
             return static_cast<T>(val);
         }
 #endif

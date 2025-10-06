@@ -18,7 +18,7 @@ namespace renderer {
      *   裁剪值到区间范围内
      */
     typedef struct Range {
-        double min, max;
+        float min, max;
 
         // ====== 构造操作 ======
         __host__ __device__ static Range merge(const Range & r1, const Range & r2) {
@@ -30,7 +30,7 @@ namespace renderer {
             return min >= max;
         }
 
-        __host__ __device__ bool inRange(double val, bool leftClose = true, bool rightClose = true) const {
+        __host__ __device__ bool inRange(float val, bool leftClose = true, bool rightClose = true) const {
             const bool equalsToMin = MathHelper::floatValueEquals(val, min);
             const bool equalsToMax = MathHelper::floatValueEquals(val, max);
 
@@ -42,13 +42,13 @@ namespace renderer {
             return val > min && val < max;
         }
 
-        __host__ __device__ void shift(double length) {
+        __host__ __device__ void shift(float length) {
             min += length;
             max += length;
         }
 
-        __host__ __device__ void expand(double endpointExtLength) {
-            if (endpointExtLength > 0.0) {
+        __host__ __device__ void expand(float endpointExtLength) {
+            if (endpointExtLength > 0.0f) {
                 min -= endpointExtLength;
                 max += endpointExtLength;
             } else {
@@ -57,15 +57,15 @@ namespace renderer {
             }
         }
 
-        __host__ __device__ double length() const {
+        __host__ __device__ float length() const {
             if (min >= max || MathHelper::floatValueEquals(min, max)) {
-                return 0.0;
+                return 0.0f;
             } else {
                 return max - min;
             }
         }
 
-        __host__ __device__ double clamp(double val) const {
+        __host__ __device__ float clamp(float val) const {
             if (val > max) {
                 return max;
             } else if (val < min) {

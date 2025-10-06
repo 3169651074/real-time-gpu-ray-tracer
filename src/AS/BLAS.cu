@@ -132,7 +132,7 @@ namespace renderer {
             const size_t index = stack[--stackSize];
 
             //检查光线是否和当前节点的包围盒相交
-            double t;
+            float t;
             if (!treeArray[index].boundingBox.hit(*ray, currentRange, t)) {
                 //不相交，继续弹元素
                 continue;
@@ -169,7 +169,7 @@ namespace renderer {
                 //优先处理更近的节点，将更远的子节点先入栈，后处理
                 const size_t leftID = node.index;
                 const size_t rightID = leftID + 1;
-                double tLeft, tRight;
+                float tLeft, tRight;
                 treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
                 treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
 

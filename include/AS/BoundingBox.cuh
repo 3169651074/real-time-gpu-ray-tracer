@@ -48,7 +48,7 @@ namespace renderer {
 
         //使用bounds数组构造包围盒
         //[x1, x2], [y1, y2], [z1, z2]
-        explicit BoundingBox(const double bounds[6]) {
+        explicit BoundingBox(const float bounds[6]) {
             for (size_t i = 0; i < 6; i += 2) {
                 range[i / 2] = Range{bounds[i], bounds[i + 1]};
             }
@@ -67,7 +67,7 @@ namespace renderer {
         BoundingBox transformBoundingBox(const Matrix & matrix) const;
 
         //相交测试
-        __device__ bool hit(const Ray & ray, const Range & checkRange, double & t) const;
+        __device__ bool hit(const Ray & ray, const Range & checkRange, float & t) const;
 
         std::string toString() const {
             char buf[200];

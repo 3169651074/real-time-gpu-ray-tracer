@@ -9,13 +9,13 @@ namespace renderer {
     {
         HitRecord record{};
         Ray currentRay = *ray;
-        Color3 result{1.0, 1.0, 1.0};
+        Color3 result{1.0f, 1.0f, 1.0f};
 //#define NO_AS
 #ifdef NO_AS
         for (size_t currentIterateDepth = 0; currentIterateDepth < dev_camera[0].rayTraceDepth; currentIterateDepth++) {
             //遍历所有物体，判断是否相交
             bool isHit = false;
-            double closestT = INFINITY;
+            float closestT = INFINITY;
 
             for (size_t i = 0; i < dev_geometryData->sphereCount; i++) {
                 HitRecord tempRecord;
@@ -66,7 +66,7 @@ namespace renderer {
 #else
         for (size_t currentIterateDepth = 0; currentIterateDepth < dev_camera[0].rayTraceDepth; currentIterateDepth++) {
             //通过TLAS进行碰撞测试
-            constexpr Range range = {0.001, INFINITY};
+            constexpr Range range = {0.001f, INFINITY};
             
             if (TLAS::hit(
                     dev_asTraverseData->tlasArray.first.first, dev_asTraverseData->tlasArray.second.first,
@@ -122,14 +122,14 @@ namespace renderer {
         //抗锯齿采样和光线颜色计算
         for (size_t sampleI = 0; sampleI < dev_camera[0].sqrtSampleCount; sampleI++) {
             for (size_t sampleJ = 0; sampleJ < dev_camera[0].sqrtSampleCount; sampleJ++) {
-                const double offsetX = ((static_cast<double>(sampleJ) + RandomGenerator::randomDouble(&state)) * dev_camera[0].reciprocalSqrtSampleCount) - 0.5;
-                const double offsetY = ((static_cast<double>(sampleI) + RandomGenerator::randomDouble(&state)) * dev_camera[0].reciprocalSqrtSampleCount) - 0.5;
+                const float offsetX = ((static_cast<float>(sampleJ) + RandomGenerator::randomDouble(&state)) * dev_camera[0].reciprocalSqrtSampleCount) - 0.5f;
+                const float offsetY = ((static_cast<float>(sampleI) + RandomGenerator::randomDouble(&state)) * dev_camera[0].reciprocalSqrtSampleCount) - 0.5f;
                 const Point3 samplePoint =
                         dev_camera[0].pixelOrigin + ((x + offsetX) * dev_camera[0].viewPortPixelDx) + ((y + offsetY) * dev_camera[0].viewPortPixelDy);
 
                 //构造光线
                 Point3 rayOrigin = dev_camera[0].cameraCenter;
-                if (dev_camera[0].focusDiskRadius > 0.0) {
+                if (dev_camera[0].focusDiskRadius > 0.0f) {
                     //离焦采样：在离焦半径内随机选取一个点，以这个点发射光线
                     const Vec3 defocusVector = Vec3::randomPlaneVector(&state, dev_camera[0].focusDiskRadius);
                     //使用视口方向向量定位采样点

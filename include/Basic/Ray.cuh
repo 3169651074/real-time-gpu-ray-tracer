@@ -15,7 +15,7 @@ namespace renderer {
         Point3 origin;
         Vec3 direction;
 
-        __host__ __device__ Point3 at(double t) const {
+        __host__ __device__ Point3 at(float t) const {
             return origin + t * direction;
         }
     } Ray;

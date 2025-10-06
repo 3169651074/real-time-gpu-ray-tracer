@@ -62,6 +62,7 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         src/AS/BLAS.cu
         include/AS/TLAS.cuh
         src/AS/TLAS.cu
+        src/AS/Instance.cu
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM

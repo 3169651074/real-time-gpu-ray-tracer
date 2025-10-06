@@ -349,11 +349,11 @@ namespace renderer {
         bool key_space_pressed = false;
         bool key_lshift_pressed = false;
 
-        constexpr double MOUSE_SENSITIVITY = 0.001;
-        constexpr double PITCH_LIMIT_RADIAN = PI / 2.1;
-        constexpr double MOVE_SPEED = 0.1;
+        constexpr float MOUSE_SENSITIVITY = 0.001f;
+        constexpr float PITCH_LIMIT_RADIAN = PI / 2.1f;
+        constexpr float MOVE_SPEED = 0.1f;
 
-        constexpr double TARGET_FPS = 70.0;
+        constexpr float TARGET_FPS = 60.0f;
         constexpr auto TARGET_FRAME_DURATION = std::chrono::microseconds(static_cast<Sint64>(1000000.0 / TARGET_FPS));
         constexpr auto SLEEP_MARGIN = std::chrono::milliseconds(2);
 
@@ -415,18 +415,18 @@ namespace renderer {
 
                 //左右旋转 (Yaw)
                 //将视线向量(W) 绕着上方向量(V) 进行旋转，实现视角左右旋转
-                const double yawAngle = -dx * MOUSE_SENSITIVITY;
+                const float yawAngle = -dx * MOUSE_SENSITIVITY;
                 W = W.rotate(V, yawAngle);
 
                 //上下旋转 (Pitch)
                 //将已经左右旋转过的视线向量(W) 绕着右方向量(U) 进行旋转
-                double pitchAngle = -dy * MOUSE_SENSITIVITY;
+                float pitchAngle = -dy * MOUSE_SENSITIVITY;
                 W = W.rotate(U, pitchAngle);
 
                 //限制俯仰角超过限制
                 //从已经左右旋转过的W向量中获取当前俯仰角
                 //W向量的Y分量是俯仰角(pitch)的正弦值，所以可以用asin来获取
-                double newPitch = std::asin(W[1]);
+                float newPitch = std::asin(W[1]);
 
                 bool needsCorrection = false;
                 if (newPitch > PITCH_LIMIT_RADIAN) {
@@ -439,10 +439,10 @@ namespace renderer {
                 //如果超限了，就根据限制角度重新构建W向量
                 if (needsCorrection) {
                     //获取水平方向
-                    const Vec3 horizontalDir = Vec3{W[0], 0.0, W[2]}.unitVector();
+                    const Vec3 horizontalDir = Vec3{W[0], 0.0f, W[2]}.unitVector();
                     //用被钳制后的俯仰角 newPitch 重新计算W
-                    const double horizontalMagnitude = std::cos(newPitch);
-                    W = horizontalDir * horizontalMagnitude + Vec3{0.0, std::sin(newPitch), 0.0};
+                    const float horizontalMagnitude = std::cos(newPitch);
+                    W = horizontalDir * horizontalMagnitude + Vec3{0.0f, std::sin(newPitch), 0.0f};
                 }
                 //更新目标点。鼠标移动只改变看向的位置
                 newCameraTarget = newCameraCenter + W * viewDirection.length();
@@ -452,7 +452,7 @@ namespace renderer {
             Vec3 movementDirection{};
 
             //使得键盘按键总是在水平平面上移动，移除方向向量的竖直分量（取平面投影）
-            const Vec3 forwardHorizontal = Vec3{pin_camera->cameraW[0], 0.0, pin_camera->cameraW[2]}.unitVector();
+            const Vec3 forwardHorizontal = Vec3{pin_camera->cameraW[0], 0.0f, pin_camera->cameraW[2]}.unitVector();
             if (key_w_pressed) movementDirection += forwardHorizontal; // Forward
             if (key_s_pressed) movementDirection -= forwardHorizontal; // Backward
             if (key_d_pressed) movementDirection += pin_camera->cameraU; // Right (Strafe)
@@ -462,7 +462,7 @@ namespace renderer {
             if (key_space_pressed) movementDirection += pin_camera->upDirection;  // Up
             if (key_lshift_pressed) movementDirection -= pin_camera->upDirection; // Down
 
-            if (movementDirection.lengthSquared() > 0.0) {
+            if (movementDirection.lengthSquared() > 0.0f) {
                 //将移动方向向量的长度变为1。这确保了斜向移动（例如同时按W和D）的速度和直线移动的速度一致，避免了“斜走更快”的问题
                 const Vec3 translation = movementDirection.unitVector() * MOVE_SPEED;
                 newCameraCenter += translation;
@@ -548,9 +548,9 @@ namespace renderer {
         Camera & cam = *pin_camera;
 
         cam.focusDistance = cam.cameraCenter.distance(cam.cameraTarget);
-        const double thetaFOV = MathHelper::degreeToRadian(cam.fov);
-        const double vWidth = 2.0 * tan(thetaFOV / 2.0) * cam.focusDistance;
-        const double vHeight = vWidth / (cam.windowWidth * 1.0 / cam.windowHeight);
+        const float thetaFOV = MathHelper::degreeToRadian(cam.fov);
+        const float vWidth = 2.0f * tan(thetaFOV / 2.0f) * cam.focusDistance;
+        const float vHeight = vWidth / (cam.windowWidth * 1.0f / cam.windowHeight);
 
         cam.viewPortWidth = vWidth;
         cam.viewPortHeight = vHeight;
@@ -562,10 +562,10 @@ namespace renderer {
         cam.viewPortY = vHeight * cam.cameraV;
         cam.viewPortPixelDx = cam.viewPortX / cam.windowWidth;
         cam.viewPortPixelDy = cam.viewPortY / cam.windowHeight;
-        cam.viewPortOrigin = cam.cameraCenter + cam.focusDistance * cam.cameraW - cam.viewPortX * 0.5 - cam.viewPortY * 0.5;
-        cam.pixelOrigin = cam.viewPortOrigin + cam.viewPortPixelDx * 0.5 + cam.viewPortPixelDy * 0.5;
+        cam.viewPortOrigin = cam.cameraCenter + cam.focusDistance * cam.cameraW - cam.viewPortX * 0.5f - cam.viewPortY * 0.5f;
+        cam.pixelOrigin = cam.viewPortOrigin + cam.viewPortPixelDx * 0.5f + cam.viewPortPixelDy * 0.5f;
         cam.sqrtSampleCount = static_cast<size_t>(std::sqrt(cam.sampleCount));
-        cam.reciprocalSqrtSampleCount = 1.0 / static_cast<double>(cam.sqrtSampleCount);
+        cam.reciprocalSqrtSampleCount = 1.0f / static_cast<float>(cam.sqrtSampleCount);
     }
 
     void Renderer::updateCameraProperties(Camera * pin_camera, const Point3 & newCenter, const Point3 & newTarget) {

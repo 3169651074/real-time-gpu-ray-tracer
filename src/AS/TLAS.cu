@@ -2,12 +2,6 @@
 
 namespace renderer {
     TLASBuildResult TLAS::constructTLAS(Instance * instanceArray, size_t instanceCount) {
-        //std::vector<Instance> instanceArrayVector(instanceArray, instanceArray + instanceCount);
-//        SDL_Log("before:");
-//        for (size_t i = 0; i < instanceCount; i++) {
-//            SDL_Log("type=%d,idx=%d",instanceArray[i].primitiveType,instanceArray[i].primitiveIndex);
-//        }
-
         //二叉树数组
         std::vector<TLASNode> retTree;
         retTree.resize(2 * instanceCount - 1);
@@ -48,6 +42,7 @@ namespace renderer {
                 const size_t rightChildIndex = nodeCount++;
 
                 //随机选择轴，将实例列表按照当前情况排序
+                //直接操作参数数组
                 const int axis = RandomGenerator::randomInteger(0, 2);
                 std::sort(
                         instanceArray + (int)task.instanceStartIndex,
@@ -67,10 +62,6 @@ namespace renderer {
                 stack.push({task.instanceStartIndex, middleIndex, leftChildIndex});
             }
         }
-//        SDL_Log("after:");
-//        for (size_t i = 0; i < instanceCount; i++) {
-//            SDL_Log("type=%d,idx=%d",instanceArray[i].primitiveType,instanceArray[i].primitiveIndex);
-//        }
         return {retTree, retIndexArray};
     }
 
@@ -91,7 +82,7 @@ namespace renderer {
         while (stackSize > 0) {
             const size_t index = stack[--stackSize];
 
-            double t;
+            float t;
             if (!treeArray[index].boundingBox.hit(*ray, currentRange, t)) {
                 continue;
             }
@@ -115,7 +106,7 @@ namespace renderer {
                 //中间节点
                 const size_t leftID = node.index;
                 const size_t rightID = leftID + 1;
-                double tLeft, tRight;
+                float tLeft, tRight;
                 treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
                 treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
 

@@ -19,7 +19,7 @@ namespace renderer {
     typedef struct HitRecord {
         Point3 hitPoint;
         Vec3 normalVector;
-        double t;
+        float t;
         bool hitFrontFace;
 
         //材质索引
@@ -27,7 +27,7 @@ namespace renderer {
         size_t materialIndex;
 
         //纹理坐标
-        Pair<double, double> uvPair;
+        Pair<float, float> uvPair;
     } HitRecord;
 }
 

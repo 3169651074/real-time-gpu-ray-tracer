@@ -2,17 +2,17 @@
 
 namespace renderer {
     __device__ bool Parallelogram::hit(const Ray & ray, const Range & range, HitRecord & record) const {
-        const double NDotD = Vec3::dot(normalVector, ray.direction);
+        const float NDotD = Vec3::dot(normalVector, ray.direction);
         if (MathHelper::floatValueNearZero(NDotD)) {
             return false;
         }
 
         //计算光线和四边形所在无限平面的交点参数t
-        double NDotP = 0.0;
+        float NDotP = 0.0f;
         for (int i = 0; i < 3; i++) {
             NDotP += normalVector[i] * ray.origin[i];
         }
-        const double t = (d - NDotP) / NDotD;
+        const float t = (d - NDotP) / NDotD;
         if (!range.inRange(t)) {
             return false;
         }
@@ -21,15 +21,15 @@ namespace renderer {
         const Point3 intersection = ray.at(t);
         const Vec3 p = Point3::constructVector(q, intersection);
         const Vec3 normal = Vec3::cross(u, v);
-        const double denominator = normal.lengthSquared();
+        const float denominator = normal.lengthSquared();
 
         if (MathHelper::floatValueNearZero(denominator)) {
             return false;
         }
-        const double alpha = Vec3::dot(Vec3::cross(p, v), normal) / denominator;
-        const double beta = Vec3::dot(Vec3::cross(u, p), normal) / denominator;
+        const float alpha = Vec3::dot(Vec3::cross(p, v), normal) / denominator;
+        const float beta = Vec3::dot(Vec3::cross(u, p), normal) / denominator;
 
-        static constexpr Range coefficientRange{0.0, 1.0};
+        static constexpr Range coefficientRange{0.0f, 1.0f};
         if (!coefficientRange.inRange(alpha) || !coefficientRange.inRange(beta)) {
             return false;
         }
@@ -46,6 +46,6 @@ namespace renderer {
     }
 
     BoundingBox Parallelogram::constructBoundingBox() const {
-        return {q + 0.5 * (u + v), q - 0.5 * (u + v)};
+        return {q + 0.5f * (u + v), q - 0.5f * (u + v)};
     }
 }

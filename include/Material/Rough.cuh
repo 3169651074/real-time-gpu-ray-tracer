@@ -11,9 +11,9 @@ namespace renderer {
     typedef struct Rough {
         Color3 albedo;
 
-        __device__ bool scatter(curandState * state, const Ray & in, const HitRecord & record, Color3 & attenuation, Ray & out) {
+        __device__ bool scatter(curandState * state, const Ray & in, const HitRecord & record, Color3 & attenuation, Ray & out) const {
             //随机选择一个反射方向
-            Vec3 reflectDirection = record.normalVector + Vec3::randomSpaceVector(state, 1.0);
+            Vec3 reflectDirection = record.normalVector + Vec3::randomSpaceVector(state, 1.0f);
 
             //若随机的反射方向和法向量相互抵消，则取消随机反射
             if (MathHelper::floatValueEquals(reflectDirection.lengthSquared(), FLOAT_ZERO_VALUE * FLOAT_ZERO_VALUE)) {

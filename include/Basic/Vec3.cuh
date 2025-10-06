@@ -25,16 +25,16 @@ namespace renderer {
      *   生成遵守按指定轴余弦分布的随机向量（单位向量）
      */
     typedef struct Vec3 {
-        double x, y, z;
+        float x, y, z;
 
         // ====== 成员访问 ======
-        __host__ __device__ double operator[](size_t index) const {
+        __host__ __device__ float operator[](size_t index) const {
             switch (index) {
                 case 0: return x; case 1: return y;
                 case 2: return z; default: return x;
             }
         }
-        __host__ __device__ double & operator[](size_t index) {
+        __host__ __device__ float & operator[](size_t index) {
             switch (index) {
                 case 0: return x; case 1: return y;
                 case 2: return z; default: return x;
@@ -74,44 +74,44 @@ namespace renderer {
         }
 
         //数乘除
-        __host__ __device__ void operator*=(double num) {
+        __host__ __device__ void operator*=(float num) {
             for (size_t i = 0; i < 3; i++) {
                 operator[](i) *= num;
             }
         }
-        __host__ __device__ Vec3 operator*(double num) const {
+        __host__ __device__ Vec3 operator*(float num) const {
             Vec3 ret = *this; ret *= num; return ret;
         }
-        __host__ __device__ void operator/=(double num) {
+        __host__ __device__ void operator/=(float num) {
             for (size_t i = 0; i < 3; i++) {
                 operator[](i) /= num;
             }
         }
-        __host__ __device__ Vec3 operator/(double num) const {
+        __host__ __device__ Vec3 operator/(float num) const {
             Vec3 ret = *this; ret /= num; return ret;
         }
-        __host__ __device__ friend Vec3 operator*(double num, const Vec3 & obj) {
+        __host__ __device__ friend Vec3 operator*(float num, const Vec3 & obj) {
             return obj * num;
         }
-        __host__ __device__ friend Vec3 operator/(double num, const Vec3 & obj) {
+        __host__ __device__ friend Vec3 operator/(float num, const Vec3 & obj) {
             return obj / num;
         }
 
         //求模长
-        __host__ __device__ double lengthSquared() const {
-            double sum = 0.0;
+        __host__ __device__ float lengthSquared() const {
+            float sum = 0.0f;
             for (size_t i = 0; i < 3; i++) {
                 sum += operator[](i) * operator[](i);
             }
             return sum;
         }
-        __host__ __device__ double length() const {
+        __host__ __device__ float length() const {
             return sqrt(lengthSquared());
         }
 
         //点乘叉乘
-        __host__ __device__ double dot(const Vec3 & obj) const {
-            double sum = 0.0;
+        __host__ __device__ float dot(const Vec3 & obj) const {
+            float sum = 0.0f;
             for (size_t i = 0; i < 3; i++) {
                 sum += operator[](i) * obj[i];
             }
@@ -127,7 +127,7 @@ namespace renderer {
 
         //单位化
         __host__ __device__ void unitize() {
-            const double factor = 1.0 / length();
+            const float factor = 1.0f / length();
             for (size_t i = 0; i < 3; i++) {
                 operator[](i) *= factor;
             }
@@ -137,13 +137,13 @@ namespace renderer {
         }
 
         //返回当前向量绕axis轴（不要求单位向量）旋转angle角度后的结果，使用罗德里格旋转公式实现
-        __host__ __device__ Vec3 rotate(const Vec3 & axis, double angle) const {
+        __host__ __device__ Vec3 rotate(const Vec3 & axis, float angle) const {
             //罗德里格公式要求旋转轴k是单位向量
             const Vec3 k = axis.unitVector();
 
             //计算三角函数值
-            const double cosTheta = cos(angle);
-            const double sinTheta = sin(angle);
+            const float cosTheta = cos(angle);
+            const float sinTheta = sin(angle);
             //v 是要旋转的向量
             const Vec3 & v = *this;
 
@@ -154,7 +154,7 @@ namespace renderer {
             //part2: (k x v) * sin(theta)
             const Vec3 part2 = k.cross(v) * sinTheta;
             //part3: k * (k . v) * (1 - cos(theta))
-            const Vec3 part3 = k * k.dot(v) * (1.0 - cosTheta);
+            const Vec3 part3 = k * k.dot(v) * (1.0f - cosTheta);
 
             //将三部分相加得到最终的旋转后向量
             return part1 + part2 + part3;
@@ -162,23 +162,23 @@ namespace renderer {
 
         // ====== 随机向量生成 ======
         //生成每个分量都在指定范围内的随机向量
-        static Vec3 randomVector(double componentMin, double componentMax);
-        __device__ static Vec3 randomVector(curandState * state, double componentMin, double componentMax);
+        static Vec3 randomVector(float componentMin, float componentMax);
+        __device__ static Vec3 randomVector(curandState * state, float componentMin, float componentMax);
 
         //生成平面（x，y，0）上模长不大于指定长度的向量
-        static Vec3 randomPlaneVector(double maxLength);
-        __device__ static Vec3 randomPlaneVector(curandState * state, double maxLength);
+        static Vec3 randomPlaneVector(float maxLength);
+        __device__ static Vec3 randomPlaneVector(curandState * state, float maxLength);
 
         //生成模长为length的空间向量
-        static Vec3 randomSpaceVector(double length);
-        __device__ static Vec3 randomSpaceVector(curandState * state, double length);
+        static Vec3 randomSpaceVector(float length);
+        __device__ static Vec3 randomSpaceVector(curandState * state, float length);
 
         //生成遵守按指定轴余弦分布的随机向量，非单位向量
         static Vec3 randomCosineVector(int axis, bool toPositive);
         __device__ static Vec3 randomCosineVector(curandState * state, int axis, bool toPositive);
 
         //点乘和叉乘提供静态版本
-        __host__ __device__ static double dot(const Vec3 & v1, const Vec3 & v2) {
+        __host__ __device__ static float dot(const Vec3 & v1, const Vec3 & v2) {
             return v1.dot(v2);
         }
         __host__ __device__ static Vec3 cross(const Vec3 & v1, const Vec3 & v2) {

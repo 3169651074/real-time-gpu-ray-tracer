@@ -16,16 +16,16 @@ namespace renderer {
      *   通过两点构造向量
      */
     typedef struct Point3 {
-        double x, y, z;
+        float x, y, z;
 
         // ====== 成员访问 ======
-        __host__ __device__ double operator[](size_t index) const {
+        __host__ __device__ float operator[](size_t index) const {
             switch (index) {
                 case 0: return x; case 1: return y;
                 case 2: return z; default: return x;
             }
         }
-        __host__ __device__ double & operator[](size_t index) {
+        __host__ __device__ float & operator[](size_t index) {
             switch (index) {
                 case 0: return x; case 1: return y;
                 case 2: return z; default: return x;
@@ -72,14 +72,14 @@ namespace renderer {
         }
 
         //获取两点间距
-        __host__ __device__ double distanceSquared(const Point3 & anotherPoint) const {
-            double sum = 0.0;
+        __host__ __device__ float distanceSquared(const Point3 & anotherPoint) const {
+            float sum = 0.0;
             for (size_t i = 0; i < 3; i++) {
                 sum += (operator[](i) - anotherPoint[i]) * (operator[](i) - anotherPoint[i]);
             }
             return sum;
         }
-        __host__ __device__ double distance(const Point3 & anotherPoint) const {
+        __host__ __device__ float distance(const Point3 & anotherPoint) const {
             return sqrt(distanceSquared(anotherPoint));
         }
     } Point3;

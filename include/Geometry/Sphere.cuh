@@ -18,13 +18,13 @@ namespace renderer {
     public:
         //球心和半径
         Point3 center;
-        double radius;
+        float radius;
 
         //材质索引
         MaterialType materialType;
         size_t materialIndex;
 
-        Sphere(MaterialType materialType, size_t materialIndex, const Point3 & center, double radius)
+        Sphere(MaterialType materialType, size_t materialIndex, const Point3 & center, float radius)
         : center(center), radius(radius), materialType(materialType), materialIndex(materialIndex) {}
 
         //碰撞检测
