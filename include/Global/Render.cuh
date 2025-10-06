@@ -81,29 +81,36 @@ namespace renderer {
 
     /*
      * 初始化：
-     * 分配存放材质，几何体数据和两层加速结构的页面锁定内存
-     * 在页面锁定内存中初始化材质，几何体，相机
-     * 构建底层加速结构，计算几何体变换矩阵，构建顶层加速结构
-     * 分配全局内存，初始化流
-     * 拷贝材质，几何体和两层加速结构数据到全局内存
-     * 拷贝相机到常量内存
-     * 启动渲染核函数
-     * 显示结果
+     * 分配存放材质，几何体，相机和实例数据的页面锁定内存
+     * 在页面锁定内存中初始化材质，几何体，相机，实例
+     * 根据几何体和实例信息分配两层加速结构的页面锁定内存
+     * 在页面锁定内存中构建底层加速结构，计算几何体变换矩阵，构建顶层加速结构
+     * 分配材质，几何体，实例和加速结构的全局内存，初始化拷贝流和计算流
+     *
+     * 拷贝流：拷贝材质，几何体，实例和加速结构数据到全局内存，拷贝相机到常量内存
+     * 等待拷贝流完成
+     * 计算流：启动渲染核函数
+     * 等待计算流完成，显示结果
      *
      * 更新：
+     * 在计算流第一次启动后
      * CPU：更新几何体，相机数据
-     * CPU：基于新的几何体数据计算新的变换矩阵，更新顶层加速结构
-     * CUDA流1：拷贝相机和新的顶层加速结构到全局内存
-     * CUDA流2：启动渲染核函数并显示结果
-     * 流1和流2异步执行
+     * CPU：基于新的几何体数据计算新的变换矩阵，在页面锁定内存中更新顶层加速结构
+     * 拷贝流：拷贝几何体，相机和新的顶层加速结构到全局内存
+     * 等待计算流计算完成，显示结果
+     * 计算流使用拷贝流更新后的数据继续计算
+     * CPU和拷贝流在计算流启动核函数后继续更新和拷贝
      *
      * 清理：
+     * 销毁流
      * 释放全局内存
      * 释放页面锁定内存
      * 释放其他资源
      */
     class Renderer {
     public:
+        // ====== 场景数据 ======
+
         /*
          * 分配页面锁定内存：传入的结构体需要设置每种几何体个数，函数将结构体的指针指向有效内存地址
          * 两层加速结构的内存大小：由于BVH树的一个叶子节点可以存放多个实例或图元，则节点总数小于2N - 1
@@ -128,16 +135,24 @@ namespace renderer {
         static Pair<SceneGeometryData, SceneMaterialData> copyToGlobalMemory(
                 const SceneGeometryData & geometryData, const SceneMaterialData & materialData, const Camera * pin_camera);
 
-        //释放全局内存
-        static void freeGlobalMemory(
-                SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr);
+        //释放场景数据全局内存
+        static void freeGlobalMemory(SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr);
+
+        // ====== 加速结构 ======
+
+        //分配加速结构页面锁定内存
+        static void mallocAccelerationStructurePinnedMemory();
+
+        //释放加速结构页面锁定内存
+        static void freeAccelerationStructurePinnedMemory();
 
         /*
-         * 构建加速结构
-         * 输入：物体列表和实例列表
+         * 在页面锁定内存中构建加速结构
+         * 输入：物体列表和实例列表（页面锁定内存中）
          * 输出：一个TLAS和一组BLAS
          *   TLAS的BVH树中每个叶子节点存储多个实例，每个实例拥有一个BLAS索引
          *   函数同时修改每个实例对象的asIndex成员
+         * 直接写入到分配好的页面锁定内存中
          */
         static ASBuildResult buildAccelerationStructure(const SceneGeometryData & geometryDataWithPinPtr, Instance * pin_instances, size_t instanceCount);
 

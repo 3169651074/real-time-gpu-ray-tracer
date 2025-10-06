@@ -96,7 +96,7 @@ namespace renderer {
         }
 
         //颜色转换
-        __device__ uchar4 castToUchar4(float gamma = 2.0) const {
+        __device__ uchar4 castToUchar4(float gamma = 2.0f) const {
             //伽马校正
             const float power = 1.0f / gamma;
             const float _r = pow(r, power);
@@ -105,9 +105,9 @@ namespace renderer {
 
             //将[0.0, 1.0]的颜色值映射到[0, 255]
             static constexpr Range colorRange{0.0f, 0.999f};
-            const auto intR = static_cast<Uint8>(256 * colorRange.clamp(_r));
-            const auto intG = static_cast<Uint8>(256 * colorRange.clamp(_g));
-            const auto intB = static_cast<Uint8>(256 * colorRange.clamp(_b));
+            const auto intR = static_cast<Uint8>(256.0f * colorRange.clamp(_r));
+            const auto intG = static_cast<Uint8>(256.0f * colorRange.clamp(_g));
+            const auto intB = static_cast<Uint8>(256.0f * colorRange.clamp(_b));
 
             //存储为uchar4
             return make_uchar4(intR, intG, intB, 255);

@@ -17,10 +17,15 @@ namespace renderer {
             cudaCheckError(cudaHostAlloc(&structName.arrayName, structName.countName * sizeof(className), cudaHostAllocDefault));\
         }                                   \
     } while(false)
-    //geometryData和materialData本质上是指针，不存放在页面锁定内存中
+    //geometryData和materialData变量本身本质上是指针，不存放在页面锁定内存中
     void Renderer::mallocPinnedMemory(
             SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances, size_t instanceCount)
     {
+        SDL_Log("Allocating pinned memory for scene data ...");
+        SDL_Log("Sphere count: %zd; Parallelogram count: %zd", geometryData.sphereCount, geometryData.parallelogramCount);
+        SDL_Log("Rough material count: %zd; Metal material count: %zd", materialData.roughCount, materialData.metalCount);
+        SDL_Log("Instance count: %zd", instanceCount);
+
         //分配几何体和材质内存
         _mallocHost(geometryData, Sphere, spheres, sphereCount);
         _mallocHost(geometryData, Parallelogram, parallelograms, parallelogramCount);
@@ -29,12 +34,14 @@ namespace renderer {
         _mallocHost(materialData, Metal, metals, metalCount);
 
         //分配相机内存
+        SDL_Log("Allocating pinned memory for camera ...");
         cudaCheckError(cudaHostAlloc(&pin_camera, sizeof(Camera), cudaHostAllocDefault));
 
         //分配实例内存
+        SDL_Log("Allocating pinned memory for instance ...");
         cudaCheckError(cudaHostAlloc(&pin_instances, instanceCount * sizeof(Instance), cudaHostAllocDefault));
 
-        SDL_Log("Pinned memory allocated.");
+        SDL_Log("Scene data pinned memory allocated.");
     }
 
     //释放页面锁定内存
@@ -43,6 +50,8 @@ namespace renderer {
             SceneGeometryData & geometryData, SceneMaterialData & materialData,
             Camera * & pin_camera, Instance * & pin_instances)
     {
+        SDL_Log("Freeing pinned memory for scene data ...");
+
         _freeHost(geometryData, spheres);
         _freeHost(geometryData, parallelograms);
 
@@ -50,12 +59,14 @@ namespace renderer {
         _freeHost(materialData, metals);
 
         //释放相机空间
+        SDL_Log("Freeing pinned memory for camera ...");
         cudaCheckError(cudaFreeHost(pin_camera));
 
         //释放实例空间
+        SDL_Log("Freeing pinned memory for instances...");
         cudaCheckError(cudaFreeHost(pin_instances));
 
-        SDL_Log("Pinned memory freed.");
+        SDL_Log("Scene data pinned memory freed.");
     }
 
     //分配全局内存并拷贝数据
@@ -70,6 +81,8 @@ namespace renderer {
             const SceneGeometryData & geometryData, const SceneMaterialData & materialData,
             const Camera * pin_camera)
     {
+        SDL_Log("Allocating and copying scene data to global memory...");
+
         //拷贝数组长度信息
         SceneGeometryData geometryDataWithDevPtr = geometryData;
         SceneMaterialData materialDataWithDevPtr = materialData;
@@ -81,9 +94,10 @@ namespace renderer {
         _mallocGlobalAndCopy(materialData, materialDataWithDevPtr, metals, metalCount, Metal);
 
         //拷贝相机到常量内存
+        SDL_Log("Copying camera to constant memory...");
         cudaCheckError(cudaMemcpyToSymbol(dev_camera, pin_camera, sizeof(Camera)));
-        SDL_Log("Global memory allocated.");
 
+        SDL_Log("Global memory for scene data allocated and data copied.");
         return {geometryDataWithDevPtr, materialDataWithDevPtr};
     }
 
@@ -92,19 +106,21 @@ namespace renderer {
     void Renderer::freeGlobalMemory(
             SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr)
     {
+        SDL_Log("Freeing global memory for scene data...");
+
         _freeGlobal(geometryDataWithDevPtr, spheres);
         _freeGlobal(geometryDataWithDevPtr, parallelograms);
 
         _freeGlobal(materialDataWithDevPtr, roughs);
         _freeGlobal(materialDataWithDevPtr, metals);
 
-        SDL_Log("Global memory freed");
+        SDL_Log("Global memory for scene data freed");
     }
 
     ASBuildResult Renderer::buildAccelerationStructure(
             const SceneGeometryData & geometryDataWithPinPtr, Instance * pin_instances, size_t instanceCount)
     {
-        SDL_Log("Building BLAS...");
+        SDL_Log("Building acceleration structure...");
         const Sphere * spheres = geometryDataWithPinPtr.spheres;
         const Parallelogram * parallelograms = geometryDataWithPinPtr.parallelograms;
 
@@ -114,6 +130,8 @@ namespace renderer {
         blasBuildResultVector.reserve(instanceCount);
 
         for (size_t i = 0; i < instanceCount; i++) {
+            SDL_Log("Building BLAS for instance [%zd]...", i);
+
             Instance & instance = pin_instances[i];
             //设置实例对应的BLAS下标
             instance.asIndex = blasBuildResultVector.size();
@@ -134,24 +152,30 @@ namespace renderer {
                     break;
                 default:;
             }
+
+            SDL_Log("BLAS for instance [%zd]: Node array length: %zd, index array length: %zd", i, blasBuildResultVector[i].first.size(), blasBuildResultVector[i].second.size());
         }
 
         //构建TLAS
         SDL_Log("Building TLAS...");
         const TLASBuildResult tlasBuildResult = TLAS::constructTLAS(pin_instances, instanceCount);
+        SDL_Log("TLAS node array length: %zd, index array length: %zd", tlasBuildResult.first.size(), tlasBuildResult.second.size());
 
+        SDL_Log("Acceleration structure constructed.");
         return {tlasBuildResult, blasBuildResultVector};
     }
 
     ASTraverseData Renderer::copyAccelerationStructureToGlobalMemory(const ASBuildResult & asBuildResult, const Instance * pin_instances, size_t instanceCount) {
+        SDL_Log("Allocating and copying instance data and acceleration structure data to global memory...");
         ASTraverseData ret{};
-        SDL_Log("Copying AS to global memory...");
 
         //拷贝实例数组
+        SDL_Log("Copying instance data...");
         cudaCheckError(cudaMalloc(&ret.instances, instanceCount * sizeof(Instance)));
         cudaCheckError(cudaMemcpy(ret.instances, pin_instances, instanceCount * sizeof(Instance), cudaMemcpyHostToDevice));
 
         //拷贝TLAS
+        SDL_Log("Copying TLAS data...");
         const auto tlasNodeArray = asBuildResult.tlas.first;
         const size_t tlasNodeArrayLength = tlasNodeArray.size();
         const auto tlasIndexArray = asBuildResult.tlas.second;
@@ -167,6 +191,8 @@ namespace renderer {
         ret.tlasArray.second.second = tlasIndexArrayLength;
 
         //拷贝BLAS
+        SDL_Log("Copying BLAS data...");
+
         const auto blasVector = asBuildResult.blasVector;
         const size_t blasCount = blasVector.size();
         //分配临时指针数组，BLASArray本身作为指针
@@ -190,6 +216,8 @@ namespace renderer {
             //赋值数组长度
             tempBlasArray[i].first.second = blasNodeArrayLength;
             tempBlasArray[i].second.second = blasIndexArrayLength;
+
+            SDL_Log("BLAS [%zd] copied.", i);
         }
         //将临时指针数组的指针和长度拷贝到设备
         cudaCheckError(cudaMalloc(&ret.blasArray, blasCount * sizeof(BLASArray)));
@@ -197,18 +225,21 @@ namespace renderer {
         ret.blasArrayCount = blasCount;
         delete[] tempBlasArray;
 
-        SDL_Log("AS copied to global memory.");
+        SDL_Log("Instances and acceleration structure copied to global memory.");
         return ret;
     }
 
     void Renderer::freeAccelerationStructureGlobalMemory(ASTraverseData &asTraverseData) {
         //释放实例数组
+        SDL_Log("Freeing global memory for instance...");
         cudaCheckError(cudaFree(asTraverseData.instances));
 
         //释放TLAS
+        SDL_Log("Freeing global memory for TLAS...");
         cudaCheckError(cudaFree(asTraverseData.tlasArray.first.first));
         cudaCheckError(cudaFree(asTraverseData.tlasArray.second.first));
 
+        SDL_Log("Freeing global memory for BLAS ...");
         //1. 在主机端创建一个临时数组来接收从设备传回的BLAS指针数组
         auto tempBlasArray = new BLASArray [asTraverseData.blasArrayCount];
         //2. 将设备端的BLAS指针数组拷贝回主机端的临时数组
@@ -220,33 +251,48 @@ namespace renderer {
             cudaCheckError(cudaFree(tempBlasArray[i].first.first));
             // 释放Index数组
             cudaCheckError(cudaFree(tempBlasArray[i].second.first));
+
+            SDL_Log("BLAS [%zd] freed.", i);
         }
         //4. 释放设备端的BLAS指针数组本身
         cudaCheckError(cudaFree(asTraverseData.blasArray));
         //5. 释放主机端的临时数组
         delete[] tempBlasArray;
 
-        SDL_Log("AS global memory freed");
+        SDL_Log("Global memory for Acceleration structure freed");
     }
 
     void Renderer::renderLoop(
             const SceneGeometryData & geometryDataWithDevPtr, const SceneMaterialData & materialDataWithDevPtr,
             Camera * pin_camera, const ASTraverseData & asTraverseData)
     {
-        SDL_Log("Starting render loop.");
+        constexpr float MOUSE_SENSITIVITY = 0.001f;
+        constexpr float PITCH_LIMIT_RADIAN = PI / 2.2f;
+        constexpr float MOVE_SPEED = 0.1f;
+
+        constexpr bool isRestrictFrameCount = true;
+        //仅当isRestrictFrameCount为true时以下参数有效
+        constexpr float TARGET_FPS = 60.0f;
+        constexpr auto TARGET_FRAME_DURATION = std::chrono::microseconds(static_cast<Sint64>(1000000.0 / TARGET_FPS));
+        constexpr auto SLEEP_MARGIN = std::chrono::milliseconds(2);
+
+        SDL_Log("Creating window...");
         const int w = pin_camera->windowWidth;
         const int h = pin_camera->windowHeight;
 
         //SDL
-        SDL_Window * window = SDL_CreateWindow(
-                "Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-                w, h, SDL_WINDOW_OPENGL);
-        SDL_GLContext context = SDL_GL_CreateContext(window);
+        SDL_Window * window;
+        SDL_CheckErrorPtr(window = SDL_CreateWindow(
+                                   "Test", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
+                                   w, h, SDL_WINDOW_OPENGL));
+        SDL_GLContext context;
+        SDL_CheckErrorPtr(context = SDL_GL_CreateContext(window));
 
         //禁用垂直同步
-        SDL_GL_SetSwapInterval(0);
+        SDL_CheckErrorInt(SDL_GL_SetSwapInterval(0));
 
         //OGL
+        SDL_Log("Initializing OGL...");
         if (!gladLoadGLLoader((GLADloadproc)SDL_GL_GetProcAddress)) {
             SDL_Log("Failed to init GLAD!"); return;
         }
@@ -320,6 +366,8 @@ namespace renderer {
                 cudaGraphicsRegisterFlagsWriteDiscard));
 
         // ====== 启动参数 ======
+        SDL_Log("Preparing temporary device data...");
+
         //将结构体本身拷贝到全局内存
         SceneGeometryData * dev_geometryData;
         SceneMaterialData * dev_materialData;
@@ -332,37 +380,32 @@ namespace renderer {
         cudaCheckError(cudaMalloc(&dev_asTraverseData, sizeof(ASTraverseData)));
         cudaCheckError(cudaMemcpy(dev_asTraverseData, &asTraverseData, sizeof(ASTraverseData), cudaMemcpyHostToDevice));
 
+        SDL_Log("Confirming kernel parameters...");
         const dim3 blocks(w % 16 == 0 ? w / 16 : w / 16 + 1,
                           h % 16 == 0 ? h / 16 : h / 16 + 1, 1);
         const dim3 threads(16, 16, 1);
 
         // ====== 渲染循环 ======
-        bool quit = false;
+        bool isQuit = false;
         bool isReceiveInput = true;
         SDL_Event event;
 
-        SDL_SetRelativeMouseMode(SDL_TRUE);
-        bool key_w_pressed = false;
-        bool key_a_pressed = false;
-        bool key_s_pressed = false;
-        bool key_d_pressed = false;
-        bool key_space_pressed = false;
-        bool key_lshift_pressed = false;
-
-        constexpr float MOUSE_SENSITIVITY = 0.001f;
-        constexpr float PITCH_LIMIT_RADIAN = PI / 2.1f;
-        constexpr float MOVE_SPEED = 0.1f;
-
-        constexpr float TARGET_FPS = 60.0f;
-        constexpr auto TARGET_FRAME_DURATION = std::chrono::microseconds(static_cast<Sint64>(1000000.0 / TARGET_FPS));
-        constexpr auto SLEEP_MARGIN = std::chrono::milliseconds(2);
-
+        SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_TRUE));
+        bool keyW = false;
+        bool keyA = false;
+        bool keyS = false;
+        bool keyD = false;
+        bool keySpace = false;
+        bool keyLShift = false;
+        
         std::chrono::time_point<std::chrono::steady_clock> frameStartTime;
-
-        while (!quit) {
+        SDL_Log("Starting render loop...");
+        
+        while (!isQuit) {
             //帧开始时间点
             frameStartTime = std::chrono::steady_clock::now();
 
+            //接收输入并更新输入变量
             int dx = 0;
             int dy = 0;
             Point3 newCameraCenter = pin_camera->cameraCenter;
@@ -370,31 +413,33 @@ namespace renderer {
 
             while (SDL_PollEvent(&event)) {
                 if (event.type == SDL_QUIT) {
-                    quit = true;
-                    break;
+                    isQuit = true; break;
                 }
                 if (event.type == SDL_KEYDOWN) {
                     switch (event.key.keysym.sym) {
-                        case SDLK_w: key_w_pressed = true; break;
-                        case SDLK_a: key_a_pressed = true; break;
-                        case SDLK_s: key_s_pressed = true; break;
-                        case SDLK_d: key_d_pressed = true; break;
-                        case SDLK_SPACE: key_space_pressed = true; break;
-                        case SDLK_LSHIFT: key_lshift_pressed = true; break;
+                        case SDLK_w: keyW = true; break;
+                        case SDLK_a: keyA = true; break;
+                        case SDLK_s: keyS = true; break;
+                        case SDLK_d: keyD = true; break;
+                        case SDLK_SPACE: keySpace = true; break;
+                        case SDLK_LSHIFT: keyLShift = true; break;
+                        case SDLK_ESCAPE: isQuit = true; break;
+                        default:;
                     }
                 }
                 if (event.type == SDL_KEYUP) {
                     switch (event.key.keysym.sym) {
-                        case SDLK_w: key_w_pressed = false; break;
-                        case SDLK_a: key_a_pressed = false; break;
-                        case SDLK_s: key_s_pressed = false; break;
-                        case SDLK_d: key_d_pressed = false; break;
-                        case SDLK_SPACE: key_space_pressed = false; break;
-                        case SDLK_LSHIFT: key_lshift_pressed = false; break;
+                        case SDLK_w: keyW = false; break;
+                        case SDLK_a: keyA = false; break;
+                        case SDLK_s: keyS = false; break;
+                        case SDLK_d: keyD = false; break;
+                        case SDLK_SPACE: keySpace = false; break;
+                        case SDLK_LSHIFT: keyLShift = false; break;
+                        default:;
                     }
                 }
                 if (event.type == SDL_MOUSEBUTTONDOWN) {
-                    SDL_SetRelativeMouseMode(SDL_GetRelativeMouseMode() == SDL_TRUE ? SDL_FALSE : SDL_TRUE);
+                    SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_GetRelativeMouseMode() == SDL_TRUE ? SDL_FALSE : SDL_TRUE));
                     isReceiveInput = !isReceiveInput;
                 }
                 if (event.type == SDL_MOUSEMOTION && SDL_GetRelativeMouseMode() == SDL_TRUE) {
@@ -402,8 +447,9 @@ namespace renderer {
                     dy += event.motion.yrel;
                 }
             }
-            if (quit) break;
-
+            if (isQuit) break;
+            
+            //根据输入变量计算更新数据
             //鼠标移动
             if (dx != 0 || dy != 0) {
                 const Vec3 viewDirection = Point3::constructVector(pin_camera->cameraCenter, pin_camera->cameraTarget);
@@ -415,12 +461,12 @@ namespace renderer {
 
                 //左右旋转 (Yaw)
                 //将视线向量(W) 绕着上方向量(V) 进行旋转，实现视角左右旋转
-                const float yawAngle = -dx * MOUSE_SENSITIVITY;
+                const float yawAngle = -static_cast<float>(dx) * MOUSE_SENSITIVITY;
                 W = W.rotate(V, yawAngle);
 
                 //上下旋转 (Pitch)
                 //将已经左右旋转过的视线向量(W) 绕着右方向量(U) 进行旋转
-                float pitchAngle = -dy * MOUSE_SENSITIVITY;
+                float pitchAngle = -static_cast<float>(dy) * MOUSE_SENSITIVITY;
                 W = W.rotate(U, pitchAngle);
 
                 //限制俯仰角超过限制
@@ -450,20 +496,18 @@ namespace renderer {
 
             //键盘按键
             Vec3 movementDirection{};
-
             //使得键盘按键总是在水平平面上移动，移除方向向量的竖直分量（取平面投影）
             const Vec3 forwardHorizontal = Vec3{pin_camera->cameraW[0], 0.0f, pin_camera->cameraW[2]}.unitVector();
-            if (key_w_pressed) movementDirection += forwardHorizontal; // Forward
-            if (key_s_pressed) movementDirection -= forwardHorizontal; // Backward
-            if (key_d_pressed) movementDirection += pin_camera->cameraU; // Right (Strafe)
-            if (key_a_pressed) movementDirection -= pin_camera->cameraU; // Left (Strafe)
-
+            if (keyW) movementDirection += forwardHorizontal; //Forward
+            if (keyS) movementDirection -= forwardHorizontal; //Backward
+            if (keyD) movementDirection += pin_camera->cameraU; //Right
+            if (keyA) movementDirection -= pin_camera->cameraU; //Left
             //上下移动
-            if (key_space_pressed) movementDirection += pin_camera->upDirection;  // Up
-            if (key_lshift_pressed) movementDirection -= pin_camera->upDirection; // Down
+            if (keySpace) movementDirection += pin_camera->upDirection;  //Up
+            if (keyLShift) movementDirection -= pin_camera->upDirection; //Down
 
             if (movementDirection.lengthSquared() > 0.0f) {
-                //将移动方向向量的长度变为1。这确保了斜向移动（例如同时按W和D）的速度和直线移动的速度一致，避免了“斜走更快”的问题
+                //将移动方向向量的长度变为1，确保斜向移动（例如同时按W和D）的速度和直线移动的速度一致，避免了“斜走更快”的问题
                 const Vec3 translation = movementDirection.unitVector() * MOVE_SPEED;
                 newCameraCenter += translation;
                 newCameraTarget += translation;
@@ -501,28 +545,28 @@ namespace renderer {
             glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
             SDL_GL_SwapWindow(window);
 
-            //计算本帧耗时
-            const auto frameEndTime = std::chrono::steady_clock::now();
-            const auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEndTime - frameStartTime);
-            const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
+            if (isRestrictFrameCount) {
+                //计算本帧耗时
+                const auto frameEndTime = std::chrono::steady_clock::now();
+                const auto frameTime = std::chrono::duration_cast<std::chrono::microseconds>(frameEndTime - frameStartTime);
+                const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
 
-            //如果本帧工作时间小于目标帧时长，则需要等待
-            if (workTime < TARGET_FRAME_DURATION) {
-                const auto timeToWait = TARGET_FRAME_DURATION - workTime;
-
-                //1. 粗略休眠
-                //如果需要等待的时间大于设定的安全边界，就先 sleep
-                if (timeToWait > SLEEP_MARGIN) {
-                    std::this_thread::sleep_for(timeToWait - SLEEP_MARGIN);
+                //如果本帧工作时间小于目标帧时长，则需要等待
+                if (workTime < TARGET_FRAME_DURATION) {
+                    const auto timeToWait = TARGET_FRAME_DURATION - workTime;
+                    //1. 粗略休眠
+                    if (timeToWait > SLEEP_MARGIN) {
+                        std::this_thread::sleep_for(timeToWait - SLEEP_MARGIN);
+                    }
+                    //2. 精确自旋
+                    while (std::chrono::steady_clock::now() - frameStartTime < TARGET_FRAME_DURATION) {}
                 }
-
-                //2. 精确自旋
-                //在最后一点时间里，不断查询时间，直到达到目标
-                while (std::chrono::steady_clock::now() - frameStartTime < TARGET_FRAME_DURATION) {}
             }
         }
+        SDL_Log("Render stopped.");
 
         //释放参数结构体
+        SDL_Log("Freeing temporary device memory...");
         cudaCheckError(cudaFree(dev_geometryData));
         cudaCheckError(cudaFree(dev_materialData));
         cudaCheckError(cudaFree(dev_asTraverseData));
@@ -532,6 +576,7 @@ namespace renderer {
         cudaCheckError(cudaGraphicsUnregisterResource(cudaResource));
 
         //~OGL
+        SDL_Log("Cleaning up OGL...");
         glDeleteVertexArrays(1, &VAO);
         glDeleteBuffers(1, &VBO);
         glDeleteBuffers(1, &EBO);
@@ -539,9 +584,9 @@ namespace renderer {
         glDeleteTextures(1, &textureID);
 
         //~SDL
+        SDL_Log("Cleaning up SDL resources...");
         SDL_GL_DeleteContext(context);
         SDL_DestroyWindow(window);
-        SDL_Log("Render completed.");
     }
 
     void Renderer::constructCamera(Camera * pin_camera) {
@@ -549,8 +594,8 @@ namespace renderer {
 
         cam.focusDistance = cam.cameraCenter.distance(cam.cameraTarget);
         const float thetaFOV = MathHelper::degreeToRadian(cam.fov);
-        const float vWidth = 2.0f * tan(thetaFOV / 2.0f) * cam.focusDistance;
-        const float vHeight = vWidth / (cam.windowWidth * 1.0f / cam.windowHeight);
+        const float vWidth = 2.0f * std::tan(thetaFOV / 2.0f) * cam.focusDistance;
+        const float vHeight = vWidth / (static_cast<float>(cam.windowWidth) * 1.0f / static_cast<float>(cam.windowHeight));
 
         cam.viewPortWidth = vWidth;
         cam.viewPortHeight = vHeight;
@@ -560,8 +605,8 @@ namespace renderer {
 
         cam.viewPortX = vWidth * cam.cameraU;
         cam.viewPortY = vHeight * cam.cameraV;
-        cam.viewPortPixelDx = cam.viewPortX / cam.windowWidth;
-        cam.viewPortPixelDy = cam.viewPortY / cam.windowHeight;
+        cam.viewPortPixelDx = cam.viewPortX / static_cast<float>(cam.windowWidth);
+        cam.viewPortPixelDy = cam.viewPortY / static_cast<float>(cam.windowHeight);
         cam.viewPortOrigin = cam.cameraCenter + cam.focusDistance * cam.cameraW - cam.viewPortX * 0.5f - cam.viewPortY * 0.5f;
         cam.pixelOrigin = cam.viewPortOrigin + cam.viewPortPixelDx * 0.5f + cam.viewPortPixelDy * 0.5f;
         cam.sqrtSampleCount = static_cast<size_t>(std::sqrt(cam.sampleCount));
