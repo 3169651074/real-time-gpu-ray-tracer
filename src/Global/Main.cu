@@ -18,7 +18,7 @@ int main(int argc, char * argv[]) {
 
     //分配几何体，材质，相机和实例页面锁定内存
     //让参数结构体的指针指向有效的页面锁定内存，并分配相机的页面锁定内存
-    Renderer::mallocPinnedMemory(geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera, pin_instances, instanceCount);
+    Renderer::allocSceneDataPinnedMemory(geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera, pin_instances, instanceCount);
 
     //写入相机基础信息
     pin_camera->windowWidth = 1200;
@@ -63,31 +63,30 @@ int main(int argc, char * argv[]) {
                                 std::array<float, 3>{-5.0, 0.0, 0.0},
                                 std::array<float, 3>{1.0, 1.0, 1.0});
 
-    //分配加速结构页面锁定内存
-
-    //向加速结构的页面锁定内存中使用几何体信息和实例信息构建两层加速结构
-    const auto asBuildResult = Renderer::buildAccelerationStructure(geometryDataWithPinPtr, pin_instances, instanceCount);
+    //分配加速结构页面锁定内存并使用几何体信息和实例信息构建两层加速结构
+    auto asBuildResultWithPinPtr = Renderer::buildAccelerationStructure(geometryDataWithPinPtr, pin_instances, instanceCount);
     //将加速结构拷贝到全局内存，获取用于遍历的设备指针
-    auto asTraverseData = Renderer::copyAccelerationStructureToGlobalMemory(asBuildResult, pin_instances, instanceCount);
+    auto asTraverseDataWithDevPtr = Renderer::copyAccelerationStructureToGlobalMemory(asBuildResultWithPinPtr, pin_instances, instanceCount);
 
     /*
      * 分配并拷贝几何体，材质信息到全局内存，获得指针指向有效全局内存的参数结构体
      * 此时相机对象存储于常量内存，物体和材质信息存储于GPU全局内存
      * geometryDataWithDevPtr，materialDataWithDevPtr和pin_camera作为指针，本身存储于普通内存
      */
-    const auto sceneDataWithDevPtr = Renderer::copyToGlobalMemory(
-            geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera);
+    const auto sceneDataWithDevPtr = Renderer::copySceneDataToGlobalMemory(geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera);
     SceneGeometryData geometryDataWithDevPtr = sceneDataWithDevPtr.first;
     SceneMaterialData materialDataWithDevPtr = sceneDataWithDevPtr.second;
 
     //启动渲染
-    Renderer::renderLoop(geometryDataWithDevPtr, materialDataWithDevPtr, pin_camera, asTraverseData);
+    const auto traverseData = Renderer::castToRestrictDevPtr(geometryDataWithDevPtr, materialDataWithDevPtr, asTraverseDataWithDevPtr);
+    Renderer::renderLoop(traverseData, pin_camera);
 
     //释放加速结构内存
-    Renderer::freeAccelerationStructureGlobalMemory(asTraverseData);
+    Renderer::freeAccelerationStructureGlobalMemory(asTraverseDataWithDevPtr);
+    Renderer::freeAccelerationStructurePinnedMemory(asBuildResultWithPinPtr);
 
     //释放全局内存和页面锁定内存
-    Renderer::freeGlobalMemory(geometryDataWithDevPtr, materialDataWithDevPtr);
-    Renderer::freePinnedMemory(geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera, pin_instances);
+    Renderer::freeSceneDataGlobalMemory(geometryDataWithDevPtr, materialDataWithDevPtr);
+    Renderer::freeSceneDataPinnedMemory(geometryDataWithPinPtr, materialDataWithPinPtr, pin_camera, pin_instances);
     return 0;
 }

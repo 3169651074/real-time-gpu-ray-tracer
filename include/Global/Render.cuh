@@ -61,8 +61,10 @@ namespace renderer {
     //此结构体直接存储加速结构数据
     typedef struct ASBuildResult {
         //加速结构构建结果包含一个TLAS和一组BLAS
-        TLASBuildResult tlas;
-        std::vector<BLASBuildResult> blasVector;
+        TLASArray pin_tlasArray;
+
+        BLASArray * pin_blasArray;
+        size_t blasArrayCount;
     } ASBuildResult;
 
     //加速结构遍历参数，此结构体保存指向加速结构的引用，在遍历前应当指向设备内存
@@ -78,6 +80,25 @@ namespace renderer {
         BLASArray * blasArray;
         size_t blasArrayCount; //BLAS的数量，即blasNodeArrayArray的长度
     } ASTraverseData;
+
+    //遍历参数，在光线遍历期间，所有资源均通过单一的只读指针访问，以启用编译器优化
+    typedef struct TraverseData {
+        //无需保留数组长度信息
+        const Sphere * const __restrict__ dev_spheres;
+        const Parallelogram * const __restrict__ dev_parallelograms;
+
+        const Rough * const __restrict__ dev_roughs;
+        const Metal * const __restrict__ dev_metals;
+
+        const Instance * const __restrict__ dev_instances;
+
+        //加速结构
+        const TLASNode * const __restrict__ tlasNodeArray;
+        const TLASIndex * const __restrict__ tlasIndexArray;
+
+        //为了不分配额外的全局内存用于存放指针数组，直接使用原始结果
+        const BLASArray * const __restrict__ blasArray;
+    } TraverseData;
 
     /*
      * 初始化：
@@ -116,10 +137,10 @@ namespace renderer {
          * 两层加速结构的内存大小：由于BVH树的一个叶子节点可以存放多个实例或图元，则节点总数小于2N - 1
          * 设有a个物体，一个物体有b个BLAS节点，则分配2a - 1个TLAS节点，a * (2b - 1)个BLAS节点
          */
-        static void mallocPinnedMemory(SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances, size_t instanceCount);
+        static void allocSceneDataPinnedMemory(SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances, size_t instanceCount);
 
         //释放页面锁定内存
-        static void freePinnedMemory(SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances);
+        static void freeSceneDataPinnedMemory(SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances);
 
         //计算相机参数
         static void constructCamera(Camera * pin_camera);
@@ -131,28 +152,27 @@ namespace renderer {
          * 分配全局内存，将场景数据拷贝到全局内存，将相机拷贝到常量内存
          * 传入初始化后的场景数据结构体，结构体内指针指向有效的页面锁定内存
          * 返回新的场景数据结构体，结构体内指针指向全局内存
+         *
+         * pin_camera不作为核函数参数，仅作为相机位置更新所使用的参数
          */
-        static Pair<SceneGeometryData, SceneMaterialData> copyToGlobalMemory(
-                const SceneGeometryData & geometryData, const SceneMaterialData & materialData, const Camera * pin_camera);
+        static Pair<SceneGeometryData, SceneMaterialData> copySceneDataToGlobalMemory(
+                const SceneGeometryData & geometryData, const SceneMaterialData & materialData,
+                const Camera * pin_camera);
 
         //释放场景数据全局内存
-        static void freeGlobalMemory(SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr);
+        static void freeSceneDataGlobalMemory(SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr);
 
         // ====== 加速结构 ======
 
-        //分配加速结构页面锁定内存
-        static void mallocAccelerationStructurePinnedMemory();
-
-        //释放加速结构页面锁定内存
-        static void freeAccelerationStructurePinnedMemory();
-
         /*
          * 在页面锁定内存中构建加速结构
+         * 函数在构建完加速结构后，根据加速结构的实际大小分配页面锁定内存
+         *
          * 输入：物体列表和实例列表（页面锁定内存中）
          * 输出：一个TLAS和一组BLAS
          *   TLAS的BVH树中每个叶子节点存储多个实例，每个实例拥有一个BLAS索引
          *   函数同时修改每个实例对象的asIndex成员
-         * 直接写入到分配好的页面锁定内存中
+         * 返回的结构体包含指向页面锁定内存的指针
          */
         static ASBuildResult buildAccelerationStructure(const SceneGeometryData & geometryDataWithPinPtr, Instance * pin_instances, size_t instanceCount);
 
@@ -165,10 +185,18 @@ namespace renderer {
         //释放加速结构全局内存
         static void freeAccelerationStructureGlobalMemory(ASTraverseData & asTraverseData);
 
-        //渲染循环
-        static void renderLoop(
+        //释放加速结构页面锁定内存
+        static void freeAccelerationStructurePinnedMemory(ASBuildResult & asBuildResultWithPinPtr);
+
+        // ====== 渲染 ======
+
+        //将分配好的设备指针转换为只读指针
+        static TraverseData castToRestrictDevPtr(
                 const SceneGeometryData & geometryDataWithDevPtr, const SceneMaterialData & materialDataWithDevPtr,
-                Camera * pin_camera, const ASTraverseData & asTraverseData);
+                const ASTraverseData & asTraverseDataWithDevPtr);
+
+        //渲染循环
+        static void renderLoop(const TraverseData & traverseData, Camera * pin_camera);
     };
 
     extern __constant__ Camera dev_camera[1];

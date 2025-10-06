@@ -36,7 +36,7 @@ namespace renderer {
         std::vector<Pair<PrimitiveType, size_t>> retIndexArray;
         retIndexArray.reserve(primitiveCount);
 
-        //当前已构建的BLASNode数量
+        //当前已构建的BLASNode数量，在构建完成后，就是实际的节点数量
         size_t nodeCount = 0;
         //任务栈
         std::stack<BuildingTask> stack;
@@ -106,13 +106,18 @@ namespace renderer {
                 stack.push({task.primitiveStartIndex, middleIndex, leftChildIndex});
             }
         }
+
+        //根据实际的节点数量释放未使用的数组空间
+        retTree.resize(nodeCount);
+        retTree.shrink_to_fit();
+
         return {retTree, retIndexArray};
     }
 
     __device__ bool BLAS::hit(
-            const BLASNode * treeArray, const Pair<PrimitiveType, size_t> * indexArray,
+            const BLASNode * const __restrict__ treeArray, const Pair<PrimitiveType, size_t> * const __restrict__ indexArray,
             const Ray * ray, const Range * range, HitRecord * record,
-            const Sphere * spheres, const Parallelogram * parallelograms)
+            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms)
     {
         /*
          * 使用栈进行递归，栈存储待访问的BLASNode索引

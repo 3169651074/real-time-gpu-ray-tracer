@@ -1,10 +1,7 @@
 #include <Global/Render.cuh>
 
 namespace renderer {
-    //核函数声明
-    __global__ void render(
-            SceneGeometryData * dev_geometryData, SceneMaterialData * dev_materialData,
-            cudaSurfaceObject_t surfaceObject, const ASTraverseData * dev_asTraverseData);
+    extern __global__ void render(const TraverseData * dev_traverseData, cudaSurfaceObject_t surfaceObject);
 
     //分配页面锁定内存
     /*
@@ -18,7 +15,7 @@ namespace renderer {
         }                                   \
     } while(false)
     //geometryData和materialData变量本身本质上是指针，不存放在页面锁定内存中
-    void Renderer::mallocPinnedMemory(
+    void Renderer::allocSceneDataPinnedMemory(
             SceneGeometryData & geometryData, SceneMaterialData & materialData, Camera * & pin_camera, Instance * & pin_instances, size_t instanceCount)
     {
         SDL_Log("Allocating pinned memory for scene data ...");
@@ -46,7 +43,7 @@ namespace renderer {
 
     //释放页面锁定内存
 #define _freeHost(structName, arrayName) cudaCheckError(cudaFreeHost(structName.arrayName))
-    void Renderer::freePinnedMemory(
+    void Renderer::freeSceneDataPinnedMemory(
             SceneGeometryData & geometryData, SceneMaterialData & materialData,
             Camera * & pin_camera, Instance * & pin_instances)
     {
@@ -77,7 +74,7 @@ namespace renderer {
                 cudaCheckError(cudaMemcpy(dstStructName.arrayName, srcStructName.arrayName, srcStructName.countName * sizeof(className), cudaMemcpyHostToDevice));\
             }                                       \
         } while (false)
-    Pair<SceneGeometryData, SceneMaterialData> Renderer::copyToGlobalMemory(
+    Pair<SceneGeometryData, SceneMaterialData> Renderer::copySceneDataToGlobalMemory(
             const SceneGeometryData & geometryData, const SceneMaterialData & materialData,
             const Camera * pin_camera)
     {
@@ -103,7 +100,7 @@ namespace renderer {
 
     //释放全局内存，无需释放常量内存
 #define _freeGlobal(structName, arrayName) cudaCheckError(cudaFree(structName.arrayName))
-    void Renderer::freeGlobalMemory(
+    void Renderer::freeSceneDataGlobalMemory(
             SceneGeometryData & geometryDataWithDevPtr, SceneMaterialData & materialDataWithDevPtr)
     {
         SDL_Log("Freeing global memory for scene data...");
@@ -160,9 +157,71 @@ namespace renderer {
         SDL_Log("Building TLAS...");
         const TLASBuildResult tlasBuildResult = TLAS::constructTLAS(pin_instances, instanceCount);
         SDL_Log("TLAS node array length: %zd, index array length: %zd", tlasBuildResult.first.size(), tlasBuildResult.second.size());
-
         SDL_Log("Acceleration structure constructed.");
-        return {tlasBuildResult, blasBuildResultVector};
+
+        //将加速结构拷贝到页面锁定内存
+        SDL_Log("Allocating pinned memory for acceleration structure...");
+        ASBuildResult result;
+
+        SDL_Log("Copying TLAS data...");
+        const auto & tlasNodeArray = tlasBuildResult.first.data();
+        const size_t tlasNodeArrayLength = tlasBuildResult.first.size();
+        const auto & tlasIndexArray = tlasBuildResult.second.data();
+        const size_t tlasIndexArrayLength = tlasBuildResult.second.size();
+
+        //Node
+        cudaCheckError(cudaHostAlloc(&result.pin_tlasArray.first.first, tlasNodeArrayLength * sizeof(TLASNode), cudaHostAllocDefault));
+        memcpy(result.pin_tlasArray.first.first, tlasNodeArray, tlasNodeArrayLength * sizeof(TLASNode));
+        result.pin_tlasArray.first.second = tlasNodeArrayLength;
+
+        //Index
+        cudaCheckError(cudaHostAlloc(&result.pin_tlasArray.second.first, tlasIndexArrayLength * sizeof(TLASIndex), cudaHostAllocDefault));
+        memcpy(result.pin_tlasArray.second.first, tlasIndexArray, tlasIndexArrayLength * sizeof(TLASIndex));
+        result.pin_tlasArray.second.second = tlasIndexArrayLength;
+
+        SDL_Log("Copying BLAS data...");
+        //BLAS数量为实例数量
+        //分配指针数组内存
+        cudaCheckError(cudaHostAlloc(&result.pin_blasArray, instanceCount * sizeof(BLASArray), cudaHostAllocDefault));
+
+        //逐个BLAS拷贝数据
+        for (size_t i = 0; i < instanceCount; i++) {
+            const auto & blasNodeArray = blasBuildResultVector[i].first.data();
+            const size_t blasNodeArrayLength = blasBuildResultVector[i].first.size();
+            const auto & blasIndexArray = blasBuildResultVector[i].second.data();
+            const size_t blasIndexArrayLength = blasBuildResultVector[i].second.size();
+
+            //Node
+            cudaCheckError(cudaHostAlloc(&result.pin_blasArray[i].first.first, blasNodeArrayLength * sizeof(BLASNode), cudaHostAllocDefault));
+            memcpy(result.pin_blasArray[i].first.first, blasNodeArray, blasNodeArrayLength * sizeof(BLASNode));
+            result.pin_blasArray[i].first.second = blasNodeArrayLength;
+
+            //Index
+            cudaCheckError(cudaHostAlloc(&result.pin_blasArray[i].second.first, blasIndexArrayLength * sizeof(BLASIndex), cudaHostAllocDefault));
+            memcpy(result.pin_blasArray[i].second.first, blasIndexArray, blasIndexArrayLength * sizeof(BLASIndex));
+            result.pin_blasArray[i].second.second = blasIndexArrayLength;
+
+            SDL_Log("Copying BLAS [%zd] to pinned memory...", i);
+        }
+        result.blasArrayCount = instanceCount;
+        SDL_Log("Acceleration structure copied to pinned memory.");
+
+        return result;
+    }
+
+    void Renderer::freeAccelerationStructurePinnedMemory(ASBuildResult & asBuildResultWithPinPtr) {
+        SDL_Log("Freeing pinned memory for acceleration structure...");
+
+        //TLAS
+        cudaCheckError(cudaFreeHost(asBuildResultWithPinPtr.pin_tlasArray.first.first));
+        cudaCheckError(cudaFreeHost(asBuildResultWithPinPtr.pin_tlasArray.second.first));
+
+        //BLAS
+        for (size_t i = 0; i < asBuildResultWithPinPtr.blasArrayCount; i++) {
+            cudaCheckError(cudaFreeHost(asBuildResultWithPinPtr.pin_blasArray[i].first.first));
+            cudaCheckError(cudaFreeHost(asBuildResultWithPinPtr.pin_blasArray[i].second.first));
+        }
+        SDL_Log("Pinned memory for acceleration structure freed.");
     }
 
     ASTraverseData Renderer::copyAccelerationStructureToGlobalMemory(const ASBuildResult & asBuildResult, const Instance * pin_instances, size_t instanceCount) {
@@ -176,45 +235,43 @@ namespace renderer {
 
         //拷贝TLAS
         SDL_Log("Copying TLAS data...");
-        const auto tlasNodeArray = asBuildResult.tlas.first;
-        const size_t tlasNodeArrayLength = tlasNodeArray.size();
-        const auto tlasIndexArray = asBuildResult.tlas.second;
-        const size_t tlasIndexArrayLength = tlasIndexArray.size();
-        //拷贝Node数组
+        const auto & tlasNodeArray = asBuildResult.pin_tlasArray.first.first;
+        const size_t tlasNodeArrayLength = asBuildResult.pin_tlasArray.first.second;
+        const auto & tlasIndexArray = asBuildResult.pin_tlasArray.second.first;
+        const size_t tlasIndexArrayLength = asBuildResult.pin_tlasArray.second.second;
+        //Node
         cudaCheckError(cudaMalloc(&ret.tlasArray.first.first, tlasNodeArrayLength * sizeof(TLASNode)));
-        cudaCheckError(cudaMemcpy(ret.tlasArray.first.first, tlasNodeArray.data(), tlasNodeArrayLength * sizeof(TLASNode), cudaMemcpyHostToDevice));
-        //拷贝Index数组
-        cudaCheckError(cudaMalloc(&ret.tlasArray.second.first, tlasIndexArrayLength * sizeof(TLASIndex)));
-        cudaCheckError(cudaMemcpy(ret.tlasArray.second.first, tlasIndexArray.data(), tlasIndexArrayLength * sizeof(TLASIndex), cudaMemcpyHostToDevice));
-        //赋值数组长度
+        cudaCheckError(cudaMemcpy(ret.tlasArray.first.first, tlasNodeArray, tlasNodeArrayLength * sizeof(TLASNode), cudaMemcpyHostToDevice));
         ret.tlasArray.first.second = tlasNodeArrayLength;
+
+        //Index
+        cudaCheckError(cudaMalloc(&ret.tlasArray.second.first, tlasIndexArrayLength * sizeof(TLASIndex)));
+        cudaCheckError(cudaMemcpy(ret.tlasArray.second.first, tlasIndexArray, tlasIndexArrayLength * sizeof(TLASIndex), cudaMemcpyHostToDevice));
         ret.tlasArray.second.second = tlasIndexArrayLength;
 
         //拷贝BLAS
         SDL_Log("Copying BLAS data...");
 
-        const auto blasVector = asBuildResult.blasVector;
-        const size_t blasCount = blasVector.size();
+        const auto & blasVector = asBuildResult.pin_blasArray;
+        const size_t blasCount = asBuildResult.blasArrayCount;
         //分配临时指针数组，BLASArray本身作为指针
         auto tempBlasArray = new BLASArray [blasCount];
         //逐个拷贝BLAS
         for (size_t i = 0; i < blasCount; i++) {
             const auto & blas = blasVector[i];
-            const auto & blasNodeArray = blas.first;
-            const size_t blasNodeArrayLength = blasNodeArray.size();
-            const auto & blasIndexArray = blas.second;
-            const size_t blasIndexArrayLength = blasIndexArray.size();
+            const auto & blasNodeArray = blas.first.first;
+            const size_t blasNodeArrayLength = blas.first.second;
+            const auto & blasIndexArray = blas.second.first;
+            const size_t blasIndexArrayLength = blas.second.second;
 
-            //拷贝Node数组
+            //Node
             cudaCheckError(cudaMalloc(&tempBlasArray[i].first.first, blasNodeArrayLength * sizeof(BLASNode)));
-            cudaCheckError(cudaMemcpy(tempBlasArray[i].first.first, blasNodeArray.data(), blasNodeArrayLength * sizeof(BLASNode), cudaMemcpyHostToDevice));
-
-            //拷贝Index数组
-            cudaCheckError(cudaMalloc(&tempBlasArray[i].second.first, blasIndexArrayLength * sizeof(BLASIndex)));
-            cudaCheckError(cudaMemcpy(tempBlasArray[i].second.first, blasIndexArray.data(), blasIndexArrayLength * sizeof(BLASIndex), cudaMemcpyHostToDevice));
-
-            //赋值数组长度
+            cudaCheckError(cudaMemcpy(tempBlasArray[i].first.first, blasNodeArray, blasNodeArrayLength * sizeof(BLASNode), cudaMemcpyHostToDevice));
             tempBlasArray[i].first.second = blasNodeArrayLength;
+
+            //Index
+            cudaCheckError(cudaMalloc(&tempBlasArray[i].second.first, blasIndexArrayLength * sizeof(BLASIndex)));
+            cudaCheckError(cudaMemcpy(tempBlasArray[i].second.first, blasIndexArray, blasIndexArrayLength * sizeof(BLASIndex), cudaMemcpyHostToDevice));
             tempBlasArray[i].second.second = blasIndexArrayLength;
 
             SDL_Log("BLAS [%zd] copied.", i);
@@ -262,10 +319,7 @@ namespace renderer {
         SDL_Log("Global memory for Acceleration structure freed");
     }
 
-    void Renderer::renderLoop(
-            const SceneGeometryData & geometryDataWithDevPtr, const SceneMaterialData & materialDataWithDevPtr,
-            Camera * pin_camera, const ASTraverseData & asTraverseData)
-    {
+    void Renderer::renderLoop(const TraverseData & traverseData, Camera * pin_camera) {
         constexpr float MOUSE_SENSITIVITY = 0.001f;
         constexpr float PITCH_LIMIT_RADIAN = PI / 2.2f;
         constexpr float MOVE_SPEED = 0.1f;
@@ -369,16 +423,9 @@ namespace renderer {
         SDL_Log("Preparing temporary device data...");
 
         //将结构体本身拷贝到全局内存
-        SceneGeometryData * dev_geometryData;
-        SceneMaterialData * dev_materialData;
-        cudaCheckError(cudaMalloc(&dev_geometryData, sizeof(SceneGeometryData)));
-        cudaCheckError(cudaMalloc(&dev_materialData, sizeof(SceneMaterialData)));
-        cudaCheckError(cudaMemcpyAsync(dev_geometryData, &geometryDataWithDevPtr, sizeof(SceneGeometryData), cudaMemcpyHostToDevice));
-        cudaCheckError(cudaMemcpyAsync(dev_materialData, &materialDataWithDevPtr, sizeof(SceneMaterialData), cudaMemcpyHostToDevice));
-
-        ASTraverseData * dev_asTraverseData;
-        cudaCheckError(cudaMalloc(&dev_asTraverseData, sizeof(ASTraverseData)));
-        cudaCheckError(cudaMemcpy(dev_asTraverseData, &asTraverseData, sizeof(ASTraverseData), cudaMemcpyHostToDevice));
+        TraverseData * dev_traverseData;
+        cudaCheckError(cudaMalloc(&dev_traverseData, sizeof(TraverseData)));
+        cudaCheckError(cudaMemcpy(dev_traverseData, &traverseData, sizeof(TraverseData), cudaMemcpyHostToDevice));
 
         SDL_Log("Confirming kernel parameters...");
         const dim3 blocks(w % 16 == 0 ? w / 16 : w / 16 + 1,
@@ -531,7 +578,7 @@ namespace renderer {
             cudaCheckError(cudaCreateSurfaceObject(&surfaceObject, &resDesc));
 
             //d. 启动核函数
-            render<<<blocks, threads>>>(dev_geometryData, dev_materialData, surfaceObject, dev_asTraverseData);
+            render<<<blocks, threads>>>(dev_traverseData, surfaceObject);
             cudaCheckError(cudaDeviceSynchronize());
 
             //e. 销毁 Surface Object
@@ -567,9 +614,7 @@ namespace renderer {
 
         //释放参数结构体
         SDL_Log("Freeing temporary device memory...");
-        cudaCheckError(cudaFree(dev_geometryData));
-        cudaCheckError(cudaFree(dev_materialData));
-        cudaCheckError(cudaFree(dev_asTraverseData));
+        cudaCheckError(cudaFree(dev_traverseData));
 
         // ====== 清理资源 ======
         //~CUDA
@@ -621,5 +666,25 @@ namespace renderer {
 
         //拷贝到常量内存
         cudaCheckError(cudaMemcpyToSymbol(dev_camera, pin_camera, sizeof(Camera)));
+    }
+
+    TraverseData Renderer::castToRestrictDevPtr(
+            const SceneGeometryData & geometryDataWithDevPtr, const SceneMaterialData & materialDataWithDevPtr,
+            const ASTraverseData & asTraverseDataWithDevPtr)
+    {
+        return {
+            .dev_spheres = geometryDataWithDevPtr.spheres,
+            .dev_parallelograms = geometryDataWithDevPtr.parallelograms,
+
+            .dev_roughs = materialDataWithDevPtr.roughs,
+            .dev_metals = materialDataWithDevPtr.metals,
+
+            .dev_instances = asTraverseDataWithDevPtr.instances,
+
+            .tlasNodeArray = asTraverseDataWithDevPtr.tlasArray.first.first,
+            .tlasIndexArray = asTraverseDataWithDevPtr.tlasArray.second.first,
+
+            .blasArray = asTraverseDataWithDevPtr.blasArray
+        };
     }
 }

@@ -50,10 +50,10 @@ namespace renderer {
          * 此函数托管了BLAS的hit函数，rayColor中将直接调用此函数而不是BLAS::hit
          */
         __device__ static bool hit(
-                const TLASNode * treeArray, const size_t * indexArray,
+                const TLASNode * __restrict__ treeArray, const size_t * __restrict__ indexArray,
+                const Instance * __restrict__ instances, const BLASArray * __restrict__ blasArray,
                 const Ray * ray, const Range * range, HitRecord * record,
-                const Instance * instances, const BLASArray * blasArray,
-                const Sphere * spheres, const Parallelogram * parallelograms);
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms);
 
     private:
         //构建过程的任务结构体

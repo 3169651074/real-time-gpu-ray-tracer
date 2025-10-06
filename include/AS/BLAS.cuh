@@ -51,9 +51,9 @@ namespace renderer {
          * BLAS相交测试，由GPU线程执行
          */
         __device__ static bool hit(
-                const BLASNode * treeArray, const Pair<PrimitiveType, size_t> * indexArray,
+                const BLASNode * __restrict__ treeArray, const Pair<PrimitiveType, size_t> * __restrict__ indexArray,
                 const Ray * ray, const Range * range, HitRecord * record,
-                const Sphere * spheres, const Parallelogram * parallelograms);
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms);
 
     private:
         //构建过程的任务结构体

@@ -60,8 +60,9 @@ namespace renderer {
          * 能调用到此函数，说明光线已经和TLAS的叶子节点，即实例，发生了碰撞，因此需要将光线变换到局部空间后和BLAS求交
          */
         __device__ bool hit(
-                const BLASArray * blasArray, const Ray * ray, const Range * range, HitRecord * record,
-                const Sphere * spheres, const Parallelogram * parallelograms) const;
+                const BLASArray * __restrict__ blasArray,
+                const Ray * ray, const Range * range, HitRecord * record,
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms) const;
 
     private:
         static Matrix makeTransform(const std::array<float, 3> & r, const std::array<float, 3> & s, const std::array<float, 3> & sc);

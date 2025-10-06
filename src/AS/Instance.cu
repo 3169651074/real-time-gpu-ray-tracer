@@ -18,8 +18,9 @@ namespace renderer {
     }
 
     __device__ bool Instance::hit(
-            const BLASArray * blasArray, const Ray * ray, const Range * range, HitRecord * record,
-            const Sphere * spheres, const Parallelogram * parallelograms) const
+            const BLASArray * const __restrict__ blasArray,
+            const Ray * ray, const Range * range, HitRecord * record,
+            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms) const
     {
         //变换光线到局部空间
         const auto rayOrigin = (transformInverse * Matrix::toMatrix(ray->origin)).toPoint();

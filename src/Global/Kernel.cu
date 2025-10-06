@@ -3,10 +3,7 @@
 namespace renderer {
     __constant__ Camera dev_camera[1];
 
-    __device__ Color3 rayColor(
-            SceneGeometryData * dev_geometryData, SceneMaterialData * dev_materialData,
-            const Ray * ray, curandState * state, const ASTraverseData * dev_asTraverseData)
-    {
+    __device__ Color3 rayColor(const TraverseData * dev_traverseData, const Ray * ray, curandState * state) {
         HitRecord record{};
         Ray currentRay = *ray;
         Color3 result{1.0f, 1.0f, 1.0f};
@@ -66,12 +63,13 @@ namespace renderer {
 #else
         for (size_t currentIterateDepth = 0; currentIterateDepth < dev_camera[0].rayTraceDepth; currentIterateDepth++) {
             //通过TLAS进行碰撞测试
-            constexpr Range range = {0.001f, INFINITY};
+            static constexpr Range range = {0.001f, INFINITY};
             
             if (TLAS::hit(
-                    dev_asTraverseData->tlasArray.first.first, dev_asTraverseData->tlasArray.second.first,
-                    &currentRay, &range, &record, dev_asTraverseData->instances, dev_asTraverseData->blasArray,
-                    dev_geometryData->spheres, dev_geometryData->parallelograms))
+                    dev_traverseData->tlasNodeArray, dev_traverseData->tlasIndexArray,
+                    dev_traverseData->dev_instances, dev_traverseData->blasArray,
+                    &currentRay, &range, &record,
+                    dev_traverseData->dev_spheres, dev_traverseData->dev_parallelograms))
             {
                 //发生碰撞，调用材质的散射函数，获取下一次迭代的光线
                 Ray out;
@@ -80,10 +78,10 @@ namespace renderer {
                 //根据材质类型调用对应的散射函数
                 switch (record.materialType) {
                     case MaterialType::ROUGH:
-                        dev_materialData->roughs[record.materialIndex].scatter(state, currentRay, record, attenuation, out);
+                        dev_traverseData->dev_roughs[record.materialIndex].scatter(state, currentRay, record, attenuation, out);
                         break;
                     case MaterialType::METAL:
-                        if (!dev_materialData->metals[record.materialIndex].scatter(state, currentRay, record, attenuation, out)) {
+                        if (!dev_traverseData->dev_metals[record.materialIndex].scatter(state, currentRay, record, attenuation, out)) {
                             return result;
                         }
                         break;
@@ -103,10 +101,7 @@ namespace renderer {
         return result;
     }
 
-    __global__ void render(
-            SceneGeometryData * dev_geometryData, SceneMaterialData * dev_materialData,
-            cudaSurfaceObject_t surfaceObject, const ASTraverseData * dev_asTraverseData)
-    {
+    __global__ void render(const TraverseData * dev_traverseData, cudaSurfaceObject_t surfaceObject) {
         //当前线程对应的全局像素坐标
         const Uint32 x = blockIdx.x * blockDim.x + threadIdx.x;
         const Uint32 y = blockIdx.y * blockDim.y + threadIdx.y;
@@ -139,7 +134,7 @@ namespace renderer {
                 const Ray ray{rayOrigin, rayDirection};
 
                 //发射光线
-                result += rayColor(dev_geometryData, dev_materialData, &ray, &state, dev_asTraverseData);
+                result += rayColor(dev_traverseData, &ray, &state);
             }
         }
 

@@ -62,14 +62,17 @@ namespace renderer {
                 stack.push({task.instanceStartIndex, middleIndex, leftChildIndex});
             }
         }
+        retTree.resize(nodeCount);
+        retTree.shrink_to_fit();
+
         return {retTree, retIndexArray};
     }
 
     __device__ bool TLAS::hit(
-            const TLASNode * treeArray, const size_t * indexArray,
+            const TLASNode * const __restrict__ treeArray, const size_t * const __restrict__ indexArray,
+            const Instance * const __restrict__ instances, const BLASArray * const __restrict__ blasArray,
             const Ray * ray, const Range * range, HitRecord * record,
-            const Instance * instances, const BLASArray * blasArray,
-            const Sphere * spheres, const Parallelogram * parallelograms)
+            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms)
     {
         size_t stack[64];
         size_t stackSize = 0;
