@@ -35,6 +35,7 @@ namespace renderer {
             float mouseSensitivity;
             float pitchLimitDegree;
             float moveSpeed;
+            float moveSpeedChangeStep;
 
             float fpsLimit;
             bool isRestrictFrameCount;
@@ -53,16 +54,18 @@ namespace renderer {
 
             int dx;
             int dy;
+            int dSpeed;
 
             bool mouseClick;
             bool keyQuit;
         } KeyMouseInputArgs;
         //初始化移动速度和帧率参数
-        static OperateArgs getOperateArgs(float mouseSensitivity, float pitchLimitDegree, float moveSpeed, float fpsLimit) {
+        static OperateArgs getOperateArgs(float fpsLimit, float mouseSensitivity, float pitchLimitDegree, float moveSpeedNTimesStep, float moveSpeedChangeStep) {
             return {
                 .mouseSensitivity = mouseSensitivity,
                 .pitchLimitDegree = PI / MathHelper::degreeToRadian(pitchLimitDegree),
-                .moveSpeed = moveSpeed,
+                .moveSpeed = moveSpeedNTimesStep * moveSpeedChangeStep,
+                .moveSpeedChangeStep = moveSpeedChangeStep,
                 .fpsLimit = fpsLimit,
                 .isRestrictFrameCount = fpsLimit != INFINITY,
                 .targetFrameDuration = std::chrono::microseconds(static_cast<Sint64>(1000000.0f / fpsLimit)),

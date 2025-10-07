@@ -137,6 +137,7 @@ namespace renderer {
         inputArgs.dx = 0;
         inputArgs.dy = 0;
         inputArgs.mouseClick = false;
+        inputArgs.dSpeed = 0;
 
         SDL_Event event;
         while (SDL_PollEvent(&event)) {
@@ -172,6 +173,9 @@ namespace renderer {
             if (event.type == SDL_MOUSEMOTION && SDL_GetRelativeMouseMode() == SDL_TRUE) {
                 inputArgs.dx += event.motion.xrel;
                 inputArgs.dy += event.motion.yrel;
+            }
+            if (event.type == SDL_MOUSEWHEEL) {
+                inputArgs.dSpeed = event.wheel.y;
             }
         }
     }

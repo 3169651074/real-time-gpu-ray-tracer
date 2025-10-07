@@ -160,7 +160,7 @@ int main(int argc, char * argv[]) {
 
     SDL_OpenGLWindow::CUDAArgs cudaArgs = SDL_OpenGLWindow::getCudaResource(window, oglArgs);
     SDL_OpenGLWindow::OperateArgs operateArgs = SDL_OpenGLWindow::getOperateArgs(
-            0.001f, 80, 0.1f, 60);
+            120, 0.001f, 80, 0.5f, 0.05f);
     SDL_OpenGLWindow::KeyMouseInputArgs inputArgs{};
 
     // ====== 循环更新 ======
@@ -193,6 +193,14 @@ int main(int argc, char * argv[]) {
             pin_camera->cameraCenter = newPos.second.first;
             pin_camera->cameraTarget = newPos.second.second;
             Renderer::calculateCameraProperties(pin_camera);
+        }
+        if (inputArgs.dSpeed != 0) {
+            if (inputArgs.dSpeed > 0) {
+                operateArgs.moveSpeed += operateArgs.moveSpeedChangeStep;
+            } else {
+                operateArgs.moveSpeed = operateArgs.moveSpeed < operateArgs.moveSpeedChangeStep ? operateArgs.moveSpeedChangeStep * 0.5f : operateArgs.moveSpeed - operateArgs.moveSpeedChangeStep;
+            }
+            SDL_Log("Change move speed to %.6f", operateArgs.moveSpeed);
         }
         //在后台缓冲区(updateIdx)的页面锁定内存中更新实例和TLAS
         updateInstance(geometryDataWithPinPtr, pin_instances[updateIdx], instanceCount, frameCount);
