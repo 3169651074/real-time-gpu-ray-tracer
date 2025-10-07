@@ -180,25 +180,25 @@ namespace renderer {
     }
 
     //构造变换矩阵
-    Matrix Matrix::constructShiftMatrix(const std::array<float, 3> & shift) {
+    Matrix Matrix::constructShiftMatrix(const float3 & shift) {
         return {
                 {
                     0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                    0.0f, 1.0f, 0.0f, 0.0f, shift[0],
-                    0.0f, 0.0f, 1.0f, 0.0f, shift[1],
-                    0.0f, 0.0f, 0.0f, 1.0f, shift[2],
+                    0.0f, 1.0f, 0.0f, 0.0f, shift.x,
+                    0.0f, 0.0f, 1.0f, 0.0f, shift.y,
+                    0.0f, 0.0f, 0.0f, 1.0f, shift.z,
                     0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                 }, 4, 4
         };
     }
 
-    Matrix Matrix::constructScaleMatrix(const std::array<float, 3> & scale) {
+    Matrix Matrix::constructScaleMatrix(const float3 & scale) {
         return {
                 {
                         0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                        0.0f, scale[0], 0.0f, 0.0f, 0.0f,
-                        0.0f, 0.0f, scale[1], 0.0f, 0.0f,
-                        0.0f, 0.0f, 0.0f, scale[2], 0.0f,
+                        0.0f, scale.x, 0.0f, 0.0f, 0.0f,
+                        0.0f, 0.0f, scale.y, 0.0f, 0.0f,
+                        0.0f, 0.0f, 0.0f, scale.z, 0.0f,
                         0.0f, 0.0f, 0.0f, 0.0f, 1.0f
                 }, 4, 4
         };
@@ -241,10 +241,10 @@ namespace renderer {
         }
     }
 
-    Matrix Matrix::constructRotateMatrix(const std::array<float, 3> & rotate) {
-        const auto mx = constructRotateMatrix(rotate[0], 0);
-        const auto my = constructRotateMatrix(rotate[1], 1);
-        const auto mz = constructRotateMatrix(rotate[2], 2);
+    Matrix Matrix::constructRotateMatrix(const float3 & rotate) {
+        const auto mx = constructRotateMatrix(rotate.x, 0);
+        const auto my = constructRotateMatrix(rotate.y, 1);
+        const auto mz = constructRotateMatrix(rotate.z, 2);
         return mx * my * mz;
     }
 

@@ -83,9 +83,9 @@ namespace renderer {
         __host__ __device__ Matrix transpose() const;
 
         //构造变换矩阵
-        static Matrix constructScaleMatrix(const std::array<float, 3> & scale);
-        static Matrix constructShiftMatrix(const std::array<float, 3> & shift);
-        static Matrix constructRotateMatrix(const std::array<float, 3> & rotate);
+        static Matrix constructScaleMatrix(const float3 & scale);
+        static Matrix constructShiftMatrix(const float3 & shift);
+        static Matrix constructRotateMatrix(const float3 & rotate);
         static Matrix constructRotateMatrix(float degree, int axis);
 
         std::string toString() const;

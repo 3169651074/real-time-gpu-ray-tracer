@@ -49,7 +49,7 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         include/Geometry/Parallelogram.cuh
         include/Global/Render.cuh
         include/Material/Metal.cuh
-        src/Global/Render.cu
+        src/Global/RenderPin.cu
         include/Util/Matrix.cuh
         src/Util/Matrix.cu
         include/AS/BoundingBox.cuh
@@ -63,6 +63,9 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         include/AS/TLAS.cuh
         src/AS/TLAS.cu
         src/AS/Instance.cu
+        include/Global/SDL_OpenGLWindow.cuh
+        src/Global/SDL_OpenGLWindow.cu
+        src/Global/RenderGlob.cu
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM

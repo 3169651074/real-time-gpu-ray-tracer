@@ -7,7 +7,7 @@ namespace renderer {
     normalTransformMatrix(transformInverse.transpose()), transformedBoundingBox{}, transformedCentroid{}{}
 
     Instance::Instance(PrimitiveType primitiveType, size_t primitiveIndex,
-    const std::array<float, 3> & rotate, const std::array<float, 3> & shift, const std::array<float, 3> & scale)
+    const float3 & rotate, const float3 & shift, const float3 & scale)
     : primitiveType(primitiveType), primitiveIndex(primitiveIndex), asIndex(0),
     transformMatrix(makeTransform(rotate, shift, scale)), transformInverse(transformMatrix.inverse()),
     normalTransformMatrix(transformInverse.transpose()), transformedBoundingBox{}, transformedCentroid{} {}
@@ -49,7 +49,7 @@ namespace renderer {
         }
     }
 
-    Matrix Instance::makeTransform(const std::array<float, 3> & r, const std::array<float, 3> & s, const std::array<float, 3> & sc) {
+    Matrix Instance::makeTransform(const float3 & r, const float3 & s, const float3 & sc) {
         const auto m1 = Matrix::constructShiftMatrix(s);
         const auto m2 = Matrix::constructRotateMatrix(r);
         const auto m3 = Matrix::constructScaleMatrix(sc);
