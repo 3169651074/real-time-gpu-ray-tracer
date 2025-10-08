@@ -9,8 +9,8 @@ endif ()
 project(${EXECUTABLE_NAME} LANGUAGES C CXX CUDA)
 
 #启用调试
-set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -G")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -G")
+#set(CMAKE_CUDA_FLAGS_RELEASE "${CMAKE_CUDA_FLAGS_RELEASE} -G")
+#set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -G")
 
 #设置语言标准
 set(CMAKE_C_STANDARD 99)
@@ -66,6 +66,8 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         include/Global/SDL_OpenGLWindow.cuh
         src/Global/SDL_OpenGLWindow.cu
         src/Global/RenderGlob.cu
+        include/JSON/json.hpp
+        include/JSON/json_fwd.hpp
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM
