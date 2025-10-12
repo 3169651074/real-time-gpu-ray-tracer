@@ -72,7 +72,8 @@ namespace renderer {
             const TLASNode * const __restrict__ treeArray, const size_t * const __restrict__ indexArray,
             const Instance * const __restrict__ instances, const BLASArray * const __restrict__ blasArray,
             const Ray * ray, const Range * range, HitRecord * record,
-            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms)
+            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms,
+            const Triangle * const __restrict__ triangles)
     {
         size_t stack[64];
         size_t stackSize = 0;
@@ -98,7 +99,7 @@ namespace renderer {
                     const Instance & instance = instances[instanceIndex];
 
                     if (instance.hit(blasArray, ray, &currentRange, &tempRecord,
-                                     spheres, parallelograms))
+                                     spheres, parallelograms, triangles))
                     {
                         isHit = true;
                         currentRange.max = tempRecord.t;

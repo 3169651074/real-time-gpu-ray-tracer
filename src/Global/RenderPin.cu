@@ -26,12 +26,14 @@ namespace renderer {
 
         _mallocGeoHost(Sphere, spheres, sphereCount);
         _mallocGeoHost(Parallelogram, parallelograms, parallelogramCount);
+        _mallocGeoHost(Triangle, triangles, triangleCount);
     }
     void Renderer::freeGeoPinMem(SceneGeometryData & geometryDataWithPinPtr) {
         SDL_Log("Freeing pinned memory for geometry data...");
 
         _freeGeoHost(spheres);
         _freeGeoHost(parallelograms);
+        _freeGeoHost(triangles);
 
         geometryDataWithPinPtr = {};
     }
@@ -124,19 +126,18 @@ namespace renderer {
 
             switch (instance.primitiveType) {
                 //构建时设置实例的变换前包围盒和几何中心
-                //由于constructBLAS函数传入参数的位置不同，不使用宏进行展开
-                case PrimitiveType::SPHERE:
-                    //instance.setBoundingBoxProperties(geometryDataWithPinPtr.spheres[instance.primitiveIndex].constructBoundingBox(), geometryDataWithPinPtr.spheres[instance.primitiveIndex].centroid());
-                    blasBuildResultVector.push_back(BLAS::constructBLAS(
-                            geometryDataWithPinPtr.spheres, instance.primitiveIndex, 1,
-                            geometryDataWithPinPtr.parallelograms, 0, 0));
-                    break;
-                case PrimitiveType::PARALLELOGRAM:
-                    //instance.setBoundingBoxProperties(geometryDataWithPinPtr.parallelograms[instance.primitiveIndex].constructBoundingBox(), geometryDataWithPinPtr.parallelograms[instance.primitiveIndex].centroid());
-                    blasBuildResultVector.push_back(BLAS::constructBLAS(
-                            geometryDataWithPinPtr.spheres, 0, 0,
-                            geometryDataWithPinPtr.parallelograms, instance.primitiveIndex, 1));
-                    break;
+#define _buildBLASForGeometry(type, field, sphereIdx, sphereCount, paraIdx, paraCount, triIdx, triCount) \
+                case PrimitiveType::type: \
+                    blasBuildResultVector.push_back(BLAS::constructBLAS( \
+                        geometryDataWithPinPtr.spheres, sphereIdx, sphereCount, \
+                        geometryDataWithPinPtr.parallelograms, paraIdx, paraCount, \
+                        geometryDataWithPinPtr.triangles, triIdx, triCount)); \
+                    break
+
+                _buildBLASForGeometry(SPHERE, spheres, instance.primitiveIndex, 1, 0, 0, 0, 0);
+                _buildBLASForGeometry(PARALLELOGRAM, parallelograms, 0, 0, instance.primitiveIndex, 1, 0, 0);
+                _buildBLASForGeometry(TRIANGLE, triangles, 0, 0, 0, 0, instance.primitiveIndex, 1);
+#undef _buildBLASForGeometry
                 default:;
             }
             SDL_Log("BLAS for instance [%zd]: Node array length: %zd, index array length: %zd.", i, blasBuildResultVector[i].first.size(), blasBuildResultVector[i].second.size());
@@ -229,6 +230,7 @@ namespace renderer {
                 //几何体和材质
                 .dev_spheres = geometryDataWithDevPtr.spheres,
                 .dev_parallelograms = geometryDataWithDevPtr.parallelograms,
+                .dev_triangles = geometryDataWithDevPtr.triangles,
 
                 .dev_roughs = materialDataWithDevPtr.roughs,
                 .dev_metals = materialDataWithDevPtr.metals,

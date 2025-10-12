@@ -3,6 +3,7 @@
 
 #include <Geometry/Sphere.cuh>
 #include <Geometry/Parallelogram.cuh>
+#include <Geometry/Triangle.cuh>
 
 namespace renderer {
     /*
@@ -45,7 +46,8 @@ namespace renderer {
          */
         static Pair<std::vector<BLASNode>, std::vector<Pair<PrimitiveType, size_t>>> constructBLAS(
                 const Sphere * spheres, size_t sphereStartIndex, size_t sphereCount,
-                const Parallelogram * parallelograms, size_t parallelogramStartIndex, size_t parallelogramCount);
+                const Parallelogram * parallelograms, size_t parallelogramStartIndex, size_t parallelogramCount,
+                const Triangle * triangles, size_t triangleStartIndex, size_t triangleCount);
 
         /*
          * BLAS相交测试，由GPU线程执行
@@ -53,7 +55,8 @@ namespace renderer {
         __device__ static bool hit(
                 const BLASNode * __restrict__ treeArray, const Pair<PrimitiveType, size_t> * __restrict__ indexArray,
                 const Ray * ray, const Range * range, HitRecord * record,
-                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms);
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms,
+                const Triangle * __restrict__ triangles);
 
     private:
         //构建过程的任务结构体

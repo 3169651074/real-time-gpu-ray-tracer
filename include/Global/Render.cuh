@@ -14,6 +14,9 @@ namespace renderer {
 
         Parallelogram * parallelograms;
         size_t parallelogramCount;
+
+        Triangle * triangles;
+        size_t triangleCount;
     } SceneGeometryData;
 
     //材质数据
@@ -62,6 +65,7 @@ namespace renderer {
         //无需保留数组长度信息
         const Sphere * const __restrict__ dev_spheres;
         const Parallelogram * const __restrict__ dev_parallelograms;
+        const Triangle * const __restrict__ dev_triangles;
 
         const Rough * const __restrict__ dev_roughs;
         const Metal * const __restrict__ dev_metals;

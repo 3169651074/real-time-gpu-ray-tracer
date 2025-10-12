@@ -68,6 +68,8 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         src/Global/RenderGlob.cu
         include/JSON/json.hpp
         include/JSON/json_fwd.hpp
+        include/Geometry/Triangle.cuh
+        src/Geometry/Triangle.cu
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM

@@ -12,6 +12,7 @@ void initGeoAndMat(SceneGeometryData & geometryDataWithPinPtr, SceneMaterialData
     geometryDataWithPinPtr.spheres[0] = {MaterialType::ROUGH, 3, {0.0, 0, 0.0}, 1000.0};
     geometryDataWithPinPtr.spheres[1] = {MaterialType::ROUGH, 0, {0.0, 0, 0.0}, 2.0};
     geometryDataWithPinPtr.parallelograms[0] = {MaterialType::ROUGH, 1, {0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {0.0, 4.0, 0.0}};
+    geometryDataWithPinPtr.triangles[0] = {MaterialType::ROUGH, 2, std::array<Point3, 3>{ Point3{0.0, 0.0, 0.0}, Point3{1.0, 0.0, 1.0}, Point3{0.0, 1.0, 0.0} }};
 }
 
 void initCamera(Camera * pin_camera) {
@@ -47,33 +48,42 @@ void updateInstance(const SceneGeometryData & geometryData, Instance * pin_insta
             initialCenter[2] + radius * std::sin(angle) * 1.5f
     };
     pin_instances[1] = Instance(PrimitiveType::SPHERE, 1,
-                                {},
+                                {0.0, 0.0, 0.0},
                                 newCenter,
                                 {1.0, 1.0, 1.0});
     pin_instances[2] = Instance(PrimitiveType::PARALLELOGRAM, 0,
                                 {0.0, 0.0, 0.0},
                                 {-5.0, 0.0, 0.0},
                                 {1.0, 1.0, 1.0});
+    const float3 newCenter2 = {
+            -newCenter.x,
+            newCenter.y,
+            -newCenter.z
+    };
+    pin_instances[3] = Instance(PrimitiveType::TRIANGLE, 0,
+                                {static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f},
+                                newCenter2,
+                                {3.0, 3.0, 3.0});
 
     //为实例准备包围盒和asIndex
     for (size_t i = 0; i < instanceCount; ++i) {
-        Instance& instance = pin_instances[i];
+        Instance & instance = pin_instances[i];
         instance.asIndex = i; //一个实例对应一个BLAS，索引就是它自己的索引
+
         switch (instance.primitiveType) {
-            case PrimitiveType::SPHERE:
-                instance.setBoundingBoxProperties(
-                        geometryData.spheres[instance.primitiveIndex].constructBoundingBox(),
-                        geometryData.spheres[instance.primitiveIndex].centroid()
-                );
-                break;
-            case PrimitiveType::PARALLELOGRAM:
-                instance.setBoundingBoxProperties(
-                        geometryData.parallelograms[instance.primitiveIndex].constructBoundingBox(),
-                        geometryData.parallelograms[instance.primitiveIndex].centroid()
-                );
-                break;
-            default:
-                break;
+#define _setGeometryBoundingBox(arrayName, typeName)\
+            case PrimitiveType::typeName:           \
+                instance.setBoundingBoxProperties(  \
+                        geometryData.arrayName[instance.primitiveIndex].constructBoundingBox(),\
+                        geometryData.arrayName[instance.primitiveIndex].centroid()\
+                );                                  \
+                break
+
+            _setGeometryBoundingBox(spheres, SPHERE);
+            _setGeometryBoundingBox(parallelograms, PARALLELOGRAM);
+            _setGeometryBoundingBox(triangles, TRIANGLE);
+#undef _setGeometryBoundingBox
+            default: break;
         }
     }
 }
@@ -85,11 +95,12 @@ int main(int argc, char * argv[]) {
     //几何体和材质
     SceneGeometryData geometryDataWithPinPtr = {
             .sphereCount = 2,
-            .parallelogramCount = 1
+            .parallelogramCount = 1,
+            .triangleCount = 1,
     };
     SceneMaterialData materialDataWithPinPtr = {
             .roughCount = 4,
-            .metalCount = 1
+            .metalCount = 1,
     };
     Renderer::allocGeoPinMem(geometryDataWithPinPtr);
     Renderer::allocMatPinMem(materialDataWithPinPtr);
@@ -105,10 +116,10 @@ int main(int argc, char * argv[]) {
     Renderer::calculateCameraProperties(pin_camera);
 
     //实例
-    const size_t instanceCount = 3;
+    const size_t instanceCount = 4;
     Instance * pin_instances[2];
     Instance * dev_instances[2];
-    for (size_t i = 0; i < lengthOf(pin_instances); i++) {
+    for (size_t i = 0; i < 2; i++) {
         pin_instances[i] = Renderer::allocInstPinMem(instanceCount);
         cudaCheckError(cudaMalloc(&dev_instances[i], instanceCount * sizeof(Instance)));
     }
@@ -125,13 +136,13 @@ int main(int argc, char * argv[]) {
 
     //遍历参数结构体也需要双缓冲
     TraverseData * dev_traverseData[2];
-    for (size_t i = 0; i < lengthOf(dev_traverseData); i++) {
+    for (size_t i = 0; i < 2; i++) {
         cudaCheckError(cudaMalloc(&dev_traverseData[i], sizeof(TraverseData)));
     }
 
     cudaEvent_t copyCompleteEvents[2];
     cudaEvent_t renderCompleteEvents[2];
-    for (size_t i = 0; i < lengthOf(copyCompleteEvents); i++) {
+    for (size_t i = 0; i < 2; i++) {
         cudaCheckError(cudaEventCreate(&copyCompleteEvents[i]));
         cudaCheckError(cudaEventCreate(&renderCompleteEvents[i]));
     }
@@ -251,9 +262,8 @@ int main(int argc, char * argv[]) {
         currentBufferIndex = updateIdx;
         frameCount++;
 
-        const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
-
         //如果本帧工作时间小于目标帧时长，则需要等待
+        const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
         if (workTime < operateArgs.targetFrameDuration) {
             const auto timeToWait = operateArgs.targetFrameDuration - workTime;
             //1. 粗略休眠：如果需要等待的时间较长，先进行一次低CPU占用的线程休眠
@@ -264,13 +274,13 @@ int main(int argc, char * argv[]) {
             while (std::chrono::steady_clock::now() - frameStartTime < operateArgs.targetFrameDuration) {}
         }
     }
-    SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_FALSE));
 
     // ====== 清理 ======
     //等待所有工作完成再开始清理
     cudaCheckError(cudaDeviceSynchronize());
 
     //释放SDL，OGL和CUDA资源
+    SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_FALSE));
     SDL_OpenGLWindow::releaseCudaResource(cudaArgs);
     SDL_OpenGLWindow::releaseOGL(oglArgs);
     SDL_OpenGLWindow::destroySDLGLWindow(sdlWindow.first, sdlWindow.second);
@@ -280,19 +290,19 @@ int main(int argc, char * argv[]) {
     cudaCheckError(cudaStreamDestroy(renderStream));
 
     //销毁事件
-    for (size_t i = 0; i < lengthOf(copyCompleteEvents); i++) {
+    for (size_t i = 0; i < 2; i++) {
         cudaCheckError(cudaEventDestroy(copyCompleteEvents[i]));
         cudaCheckError(cudaEventDestroy(renderCompleteEvents[i]));
     }
 
     //释放全局内存和页面锁定内存
-    for (size_t i = 0; i < lengthOf(dev_traverseData); i++) {
+    for (size_t i = 0; i < 2; i++) {
         cudaCheckError(cudaFree(dev_traverseData[i]));
     }
     Renderer::freeBLASGlobMem(nullptr, dev_blas);
     Renderer::freeBLASPinMem(pin_blas);
 
-    for (size_t i = 0; i < lengthOf(pin_instances); i++) {
+    for (size_t i = 0; i < 2; i++) {
         Renderer::freeInstGlobMem(nullptr, dev_instances[i]);
         Renderer::freeInstPinMem(pin_instances[i]);
     }

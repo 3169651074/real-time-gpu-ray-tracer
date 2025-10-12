@@ -3,11 +3,12 @@
 namespace renderer {
     BLASBuildResult BLAS::constructBLAS(
                 const Sphere * spheres, size_t sphereStartIndex, size_t sphereCount,
-                const Parallelogram * parallelograms, size_t parallelogramStartIndex, size_t parallelogramCount)
+                const Parallelogram * parallelograms, size_t parallelogramStartIndex, size_t parallelogramCount,
+                const Triangle * triangles, size_t triangleStartIndex, size_t triangleCount)
     {
         //合并所有图元信息，构造统一信息列表
         //对于多图元物体，需要动态计算总图元数
-        const size_t primitiveCount = sphereCount + parallelogramCount;
+        const size_t primitiveCount = sphereCount + parallelogramCount + triangleCount;
         std::vector<PrimitiveInfo> primitiveArray;
         primitiveArray.reserve(primitiveCount);
 
@@ -26,6 +27,7 @@ namespace renderer {
 
         _constructPrimitiveArray(SPHERE, spheres, sphereStartIndex, sphereCount);
         _constructPrimitiveArray(PARALLELOGRAM, parallelograms, parallelogramStartIndex, parallelogramCount);
+        _constructPrimitiveArray(TRIANGLE, triangles, triangleStartIndex, triangleCount);
 #undef _constructPrimitiveArray
 
         //二叉树数组，有 N 个叶子节点的二叉树共有 2N - 1 个节点（N - 1 个中间节点）
@@ -117,7 +119,8 @@ namespace renderer {
     __device__ bool BLAS::hit(
             const BLASNode * const __restrict__ treeArray, const Pair<PrimitiveType, size_t> * const __restrict__ indexArray,
             const Ray * ray, const Range * range, HitRecord * record,
-            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms)
+            const Sphere * const __restrict__ spheres, const Parallelogram * const __restrict__ parallelograms,
+            const Triangle * const __restrict__ triangles)
     {
         /*
          * 使用栈进行递归，栈存储待访问的BLASNode索引
@@ -166,6 +169,7 @@ namespace renderer {
 
                         _primitiveHitTest(spheres, SPHERE);
                         _primitiveHitTest(parallelograms, PARALLELOGRAM);
+                        _primitiveHitTest(triangles, TRIANGLE);
 #undef _primitiveHitTest
                     }
                 }

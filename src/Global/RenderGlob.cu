@@ -35,6 +35,7 @@ namespace renderer {
 
         _mallocGeoGlobal(spheres, sphereCount, Sphere);
         _mallocGeoGlobal(parallelograms, parallelogramCount, Parallelogram);
+        _mallocGeoGlobal(triangles, triangleCount, Triangle);
 
         return geometryDataWithDevPtr;
     }
@@ -43,12 +44,14 @@ namespace renderer {
 
         _copyGeoToGlobal(spheres, sphereCount, Sphere);
         _copyGeoToGlobal(parallelograms, parallelogramCount, Parallelogram);
+        _copyGeoToGlobal(triangles, triangleCount, Triangle);
     }
     void Renderer::freeGeoGlobMem(cudaStream_t stream, SceneGeometryData & geometryDataWithDevPtr) {
         SDL_Log("Freeing global memory for geometry...");
 
         _freeGeoGlobal(spheres);
         _freeGeoGlobal(parallelograms);
+        _freeGeoGlobal(triangles);
 
         geometryDataWithDevPtr = {};
     }

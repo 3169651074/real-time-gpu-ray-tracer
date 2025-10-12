@@ -7,7 +7,7 @@
 namespace renderer {
     //图元类型枚举
     typedef enum class PrimitiveType {
-        SPHERE, PARALLELOGRAM
+        SPHERE, PARALLELOGRAM, TRIANGLE
     } PrimitiveType;
 
     //材质类型枚举

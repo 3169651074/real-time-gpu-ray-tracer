@@ -62,7 +62,8 @@ namespace renderer {
         __device__ bool hit(
                 const BLASArray * __restrict__ blasArray,
                 const Ray * ray, const Range * range, HitRecord * record,
-                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms) const;
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms,
+                const Triangle * __restrict__ triangles) const;
 
     private:
         static Matrix makeTransform(const float3 & r, const float3 & s, const float3 & sc);

@@ -1,0 +1,36 @@
+1. 创建几何体头文件和源文件，包含成员函数：
+  __device__ bool hit(const Ray & ray, const Range & range, HitRecord & record) const
+  BoundingBox constructBoundingBox() const
+  Point3 centroid() const
+  size_t objectPrimitiveCount() const
+
+2. 在BasicTypes.cuh中添加图元类型枚举成员
+
+3. 向BLAS.cuh中添加头文件包含
+  修改BLAS构建函数（constructBLAS）的函数签名
+  在BLAS.cu中添加变量primitiveCount的计数，并添加switch语句对几何体进行处理
+
+  修改BLAS相交测试函数（__device__ static bool hit）的函数签名
+  在BLAS.cu中添加switch语句对几何体进行处理
+
+4. 在Instance.cuh中添加类型到相交测试函数的签名，在Instance.cu的对应实现中添加对几何体数组参数的传递（if (BLAS::hit)）
+
+5. 在TLAS.cuh中添加类型到相交测试函数的签名，并在TLAS.cu的对应实现中传递参数
+
+6. 添加类型数组到Render.cuh中的SceneGeometryData和TraverseData结构体成员
+
+7. 在RenderPin.cu的
+  allocGeoPinMem，freeGeoPinMem
+  buildBLASPinMem的switch语句（修改宏定义并添加宏调用）
+  traverseDevPtr
+  函数的实现中添加类型参数
+
+8. 在RenderGlob.cu的
+  allocGeoGlobMem，copyGeoToGlobMem，freeGeoGlobMem
+  函数的实现中添加类型参数
+
+9. 在Kernel.cu的rayColor函数中添加参数传递
+
+10. 在所有SceneGeometryData结构体的初始化中添加新的几何体的个数
+  在initGeoAndMat函数中添加几何体初始化
+  在updateInstance函数中添加实例更新，以及switch语句新分支

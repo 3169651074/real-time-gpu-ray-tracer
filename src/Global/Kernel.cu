@@ -69,7 +69,8 @@ namespace renderer {
                     dev_traverseData->tlasNodeArray, dev_traverseData->tlasIndexArray,
                     dev_traverseData->dev_instances, dev_traverseData->blasArray,
                     &currentRay, &range, &record,
-                    dev_traverseData->dev_spheres, dev_traverseData->dev_parallelograms))
+                    dev_traverseData->dev_spheres, dev_traverseData->dev_parallelograms,
+                    dev_traverseData->dev_triangles))
             {
                 //发生碰撞，调用材质的散射函数，获取下一次迭代的光线
                 Ray out;

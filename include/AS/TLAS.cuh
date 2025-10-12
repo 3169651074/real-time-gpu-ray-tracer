@@ -53,7 +53,8 @@ namespace renderer {
                 const TLASNode * __restrict__ treeArray, const size_t * __restrict__ indexArray,
                 const Instance * __restrict__ instances, const BLASArray * __restrict__ blasArray,
                 const Ray * ray, const Range * range, HitRecord * record,
-                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms);
+                const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms,
+                const Triangle * __restrict__ triangles);
 
     private:
         //构建过程的任务结构体
