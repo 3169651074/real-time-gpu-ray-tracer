@@ -26,6 +26,7 @@ namespace renderer {
         //实例指向的物体索引，由调用者指定，asIndex在构建加速结构时计算
         PrimitiveType primitiveType;
         size_t primitiveIndex;
+        size_t primitiveCount;
 
         /*
          * BLAS索引
@@ -39,20 +40,15 @@ namespace renderer {
         Matrix transformInverse;        //从世界空间变换到局部空间
         Matrix normalTransformMatrix;
 
+        //变换前物体的包围盒和几何中心，用于结合每帧更新的变化矩阵，计算变换后的属性
+        BoundingBox boundingBox;
+        Point3 centroid;
+
         //变换后物体的包围盒和几何中心，用于相交测试和构建顶层加速结构
-        //此参数为世界空间参数
         BoundingBox transformedBoundingBox;
         Point3 transformedCentroid;
 
-        //使用从局部空间到世界空间的变换矩阵构建实例
-        Instance(PrimitiveType primitiveType, size_t primitiveIndex, const Matrix & transformMatrix);
-
-        //使用变换参数构建实例
-        Instance(PrimitiveType primitiveType, size_t primitiveIndex,
-                 const float3 & rotate = {}, const float3 & shift = {}, const float3 & scale = {1.0, 1.0, 1.0});
-
-        //设置变换前的包围盒和中心点，变换后存入对象
-        void setBoundingBoxProperties(const BoundingBox & boundingBox, const Point3 & centroid);
+        void updateTransformArguments(float3 shift = {}, float3 rotate = {}, float3 scale = {1.0f, 1.0f, 1.0f});
 
         /*
          * 实例类碰撞检测函数：先将输入光线和TLAS的包围盒在世界空间中求交测试
@@ -64,9 +60,6 @@ namespace renderer {
                 const Ray * ray, const Range * range, HitRecord * record,
                 const Sphere * __restrict__ spheres, const Parallelogram * __restrict__ parallelograms,
                 const Triangle * __restrict__ triangles) const;
-
-    private:
-        static Matrix makeTransform(const float3 & r, const float3 & s, const float3 & sc);
     };
 }
 

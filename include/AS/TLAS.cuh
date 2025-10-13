@@ -43,7 +43,7 @@ namespace renderer {
          * 使用BLAS列表和实例列表构造TLAS
          * 一个TLASNode数组对应一个TLASIndex数组，但是二者的长度不同
          */
-        static TLASBuildResult constructTLAS(Instance * instanceArray, size_t instanceCount);
+        static TLASBuildResult constructTLAS(const Instance * instanceArray, size_t instanceCount);
 
         /*
          * TLAS遍历，由TLAS遍历函数调用BLAS遍历函数

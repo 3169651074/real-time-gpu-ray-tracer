@@ -29,63 +29,50 @@ void initCamera(Camera * pin_camera) {
     pin_camera->rayTraceDepth = 10;
 }
 
-void updateInstance(const SceneGeometryData & geometryData, Instance * pin_instances, size_t instanceCount, size_t frame) {
-    pin_instances[0] = Instance(PrimitiveType::SPHERE, 0,
-                                {},
-                                {0.0, -1000.0, 0.0},
-                                {1.0, 1.0, 1.0});
-    //初始中心点
+void initInstance(Instance * pin_instances, size_t instanceCount) {
+    //设置每个实例和几何体的对应关系
+    pin_instances[0].primitiveType = PrimitiveType::SPHERE;
+    pin_instances[0].primitiveIndex = 0;
+
+    pin_instances[1].primitiveType = PrimitiveType::SPHERE;
+    pin_instances[1].primitiveIndex = 1;
+
+    pin_instances[2].primitiveType = PrimitiveType::PARALLELOGRAM;
+    pin_instances[2].primitiveIndex = 0;
+
+    pin_instances[3].primitiveType = PrimitiveType::TRIANGLE;
+    pin_instances[3].primitiveIndex = 0;
+}
+
+void updateInstance(Instance * pin_instances, size_t instanceCount, size_t frame) {
+    //实时更新每个实例的变换信息
     const Point3 initialCenter = {0.0, 2.0, 0.0};
-    //定义旋转半径
     const float radius = 2.0f;
-    //定义旋转速度（弧度/帧）
     const float speed = 0.02f;
-    //计算当前帧的角度
     const float angle = static_cast<float>(frame) * speed;
     const float3 newCenter = {
             initialCenter[0] + radius * std::cos(angle) * 1.5f,
             initialCenter[1] + radius * std::sin(angle) * std::cos(angle),
             initialCenter[2] + radius * std::sin(angle) * 1.5f
     };
-    pin_instances[1] = Instance(PrimitiveType::SPHERE, 1,
-                                {0.0, 0.0, 0.0},
-                                newCenter,
-                                {1.0, 1.0, 1.0});
-    pin_instances[2] = Instance(PrimitiveType::PARALLELOGRAM, 0,
-                                {0.0, 0.0, 0.0},
-                                {-5.0, 0.0, 0.0},
-                                {1.0, 1.0, 1.0});
-    const float3 newCenter2 = {
-            -newCenter.x,
-            newCenter.y,
-            -newCenter.z
-    };
-    pin_instances[3] = Instance(PrimitiveType::TRIANGLE, 0,
-                                {static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f},
-                                newCenter2,
-                                {3.0, 3.0, 3.0});
+    const float3 newCenter2 = {-newCenter.x, newCenter.y,-newCenter.z};
 
-    //为实例准备包围盒和asIndex
-    for (size_t i = 0; i < instanceCount; ++i) {
-        Instance & instance = pin_instances[i];
-        instance.asIndex = i; //一个实例对应一个BLAS，索引就是它自己的索引
-
-        switch (instance.primitiveType) {
-#define _setGeometryBoundingBox(arrayName, typeName)\
-            case PrimitiveType::typeName:           \
-                instance.setBoundingBoxProperties(  \
-                        geometryData.arrayName[instance.primitiveIndex].constructBoundingBox(),\
-                        geometryData.arrayName[instance.primitiveIndex].centroid()\
-                );                                  \
-                break
-
-            _setGeometryBoundingBox(spheres, SPHERE);
-            _setGeometryBoundingBox(parallelograms, PARALLELOGRAM);
-            _setGeometryBoundingBox(triangles, TRIANGLE);
-#undef _setGeometryBoundingBox
-            default: break;
-        }
-    }
+    pin_instances[0].updateTransformArguments(
+            {0.0, -1000.0, 0.0},
+            {},
+            {1.0, 1.0, 1.0});
+    pin_instances[1].updateTransformArguments(
+            newCenter,
+            {0.0, 0.0, 0.0},
+            {1.0, 1.0, 1.0});
+    pin_instances[2].updateTransformArguments(
+            {-5.0, 0.0, 0.0},
+            {0.0, 0.0, 0.0},
+            {1.0, 1.0, 1.0});
+    pin_instances[3].updateTransformArguments(
+            newCenter2,
+            {static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f},
+            {3.0, 3.0, 3.0});
 }
 
 #undef main
@@ -123,11 +110,18 @@ int main(int argc, char * argv[]) {
         pin_instances[i] = Renderer::allocInstPinMem(instanceCount);
         cudaCheckError(cudaMalloc(&dev_instances[i], instanceCount * sizeof(Instance)));
     }
+    initInstance(pin_instances[0], instanceCount);
+    updateInstance(pin_instances[0], instanceCount, 0);
 
     //BLAS
-    updateInstance(geometryDataWithPinPtr, pin_instances[0], instanceCount, 0);
     auto pin_blas = Renderer::buildBLASPinMem(geometryDataWithPinPtr, pin_instances[0], instanceCount);
     auto dev_blas = Renderer::copyBLASToGlobMem(nullptr, pin_blas);
+
+    /*
+     * 当updateInstance不负责构造完整的实例对象时，仅在pin_instances[0]中初始化了实例对象（基础设置和BLAS构建时的属性补全）
+     * pin_instances[1]中没有数据，而双缓冲中需要使用两个实例缓冲区的**基础数据**，因此需要拷贝，且只需在开始前拷贝一次
+     */
+    memcpy(pin_instances[1], pin_instances[0], instanceCount * sizeof(Instance));
 
     //TLAS
     size_t currentBufferIndex = 0;
@@ -136,8 +130,8 @@ int main(int argc, char * argv[]) {
 
     //遍历参数结构体也需要双缓冲
     TraverseData * dev_traverseData[2];
-    for (size_t i = 0; i < 2; i++) {
-        cudaCheckError(cudaMalloc(&dev_traverseData[i], sizeof(TraverseData)));
+    for (auto & i : dev_traverseData) {
+        cudaCheckError(cudaMalloc(&i, sizeof(TraverseData)));
     }
 
     cudaEvent_t copyCompleteEvents[2];
@@ -167,11 +161,11 @@ int main(int argc, char * argv[]) {
     //初始化窗口，OGL，获取CUDA资源
     auto sdlWindow = SDL_OpenGLWindow::createSDLGLWindow("Test", 1200, 800);
     auto window = sdlWindow.first;
-    auto oglArgs = SDL_OpenGLWindow::initializeOGL(window);
+    auto OpenGLArgs = SDL_OpenGLWindow::initializeOGL(window);
 
-    SDL_OpenGLWindow::CUDAArgs cudaArgs = SDL_OpenGLWindow::getCudaResource(window, oglArgs);
+    SDL_OpenGLWindow::CudaArgs CudaArgs = SDL_OpenGLWindow::getCudaResource(window, OpenGLArgs);
     SDL_OpenGLWindow::OperateArgs operateArgs = SDL_OpenGLWindow::getOperateArgs(
-            120, 0.001f, 80, 0.5f, 0.05f);
+            120, 0.001f, 80, 2, 0.05f);
     SDL_OpenGLWindow::KeyMouseInputArgs inputArgs{};
 
     // ====== 循环更新 ======
@@ -209,12 +203,16 @@ int main(int argc, char * argv[]) {
             if (inputArgs.dSpeed > 0) {
                 operateArgs.moveSpeed += operateArgs.moveSpeedChangeStep;
             } else {
-                operateArgs.moveSpeed = operateArgs.moveSpeed < operateArgs.moveSpeedChangeStep ? operateArgs.moveSpeedChangeStep * 0.5f : operateArgs.moveSpeed - operateArgs.moveSpeedChangeStep;
+                operateArgs.moveSpeed = operateArgs.moveSpeed < operateArgs.moveSpeedChangeStep ? 0.0f : operateArgs.moveSpeed - operateArgs.moveSpeedChangeStep;
             }
             SDL_Log("Change move speed to %.6f", operateArgs.moveSpeed);
         }
-        //在后台缓冲区(updateIdx)的页面锁定内存中更新实例和TLAS
-        updateInstance(geometryDataWithPinPtr, pin_instances[updateIdx], instanceCount, frameCount);
+        /*
+         * 在后台缓冲区(updateIdx)的页面锁定内存中更新实例和TLAS
+         * 此处updateInstance只更新updateIdx缓冲区的实例对象的变换信息（实例基础信息在循环前已固定）
+         * 实例双缓冲使得此时设备可以读取另一个缓冲区的实例信息
+         */
+        updateInstance(pin_instances[updateIdx], instanceCount, frameCount);
         //释放上一轮为这个updateIdx分配的TLAS页面锁定内存
         if (pin_tlas[updateIdx].first.first != nullptr) {
             Renderer::freeTLASPinMem(pin_tlas[updateIdx]);
@@ -247,16 +245,16 @@ int main(int argc, char * argv[]) {
         //让渲染流等待“当前帧数据准备就绪”的事件
         cudaCheckError(cudaStreamWaitEvent(renderStream, copyCompleteEvents[renderIdx], 0));
         //映射资源
-        SDL_OpenGLWindow::mapCudaResource(renderStream, cudaArgs);
+        SDL_OpenGLWindow::mapCudaResource(renderStream, CudaArgs);
         //启动渲染内核，使用当前帧(renderIdx)的TraverseData
-        render<<<cudaArgs.blocks, cudaArgs.threads, 0, renderStream>>>(dev_traverseData[renderIdx], cudaArgs.surfaceObject);
+        render<<<CudaArgs.blocks, CudaArgs.threads, 0, renderStream>>>(dev_traverseData[renderIdx], CudaArgs.surfaceObject);
         //渲染完成后，清理资源 (同样在渲染流上)
-        SDL_OpenGLWindow::unmapCudaResource(renderStream, cudaArgs);
+        SDL_OpenGLWindow::unmapCudaResource(renderStream, CudaArgs);
         //记录当前帧(renderIdx)的渲染已在渲染流上完成
         cudaCheckError(cudaEventRecord(renderCompleteEvents[renderIdx], renderStream));
 
         // ====== 显示与交换 ======
-        SDL_OpenGLWindow::presentFrame(window, oglArgs);
+        SDL_OpenGLWindow::presentFrame(window, OpenGLArgs);
 
         //切换缓冲区索引，为下一轮循环做准备
         currentBufferIndex = updateIdx;
@@ -281,8 +279,8 @@ int main(int argc, char * argv[]) {
 
     //释放SDL，OGL和CUDA资源
     SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_FALSE));
-    SDL_OpenGLWindow::releaseCudaResource(cudaArgs);
-    SDL_OpenGLWindow::releaseOGL(oglArgs);
+    SDL_OpenGLWindow::releaseCudaResource(CudaArgs);
+    SDL_OpenGLWindow::releaseOGL(OpenGLArgs);
     SDL_OpenGLWindow::destroySDLGLWindow(sdlWindow.first, sdlWindow.second);
 
     //销毁流

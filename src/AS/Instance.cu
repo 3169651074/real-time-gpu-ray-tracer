@@ -1,18 +1,17 @@
 #include <AS/Instance.cuh>
 
 namespace renderer {
-    Instance::Instance(PrimitiveType primitiveType, size_t primitiveIndex, const Matrix & transformMatrix)
-    : primitiveType(primitiveType), primitiveIndex(primitiveIndex), asIndex(0),
-    transformMatrix(transformMatrix), transformInverse(transformMatrix.inverse()),
-    normalTransformMatrix(transformInverse.transpose()), transformedBoundingBox{}, transformedCentroid{}{}
+    void Instance::updateTransformArguments(float3 shift, float3 rotate, float3 scale) {
+        const auto shiftMatrix = Matrix::constructShiftMatrix(shift);
+        const auto rotateMatrix = Matrix::constructRotateMatrix(rotate);
+        const auto scaleMatrix = Matrix::constructScaleMatrix(scale);
 
-    Instance::Instance(PrimitiveType primitiveType, size_t primitiveIndex,
-    const float3 & rotate, const float3 & shift, const float3 & scale)
-    : primitiveType(primitiveType), primitiveIndex(primitiveIndex), asIndex(0),
-    transformMatrix(makeTransform(rotate, shift, scale)), transformInverse(transformMatrix.inverse()),
-    normalTransformMatrix(transformInverse.transpose()), transformedBoundingBox{}, transformedCentroid{} {}
+        //计算变换矩阵
+        transformMatrix = shiftMatrix * rotateMatrix * scaleMatrix;
+        transformInverse = transformMatrix.inverse();
+        normalTransformMatrix = transformInverse.transpose();
 
-    void Instance::setBoundingBoxProperties(const BoundingBox & boundingBox, const Point3 & centroid) {
+        //更新包围盒和中心点
         transformedBoundingBox = boundingBox.transformBoundingBox(transformMatrix);
         transformedCentroid = (transformMatrix * Matrix::toMatrix(centroid)).toPoint();
     }
@@ -48,12 +47,5 @@ namespace renderer {
         } else {
             return false;
         }
-    }
-
-    Matrix Instance::makeTransform(const float3 & r, const float3 & s, const float3 & sc) {
-        const auto m1 = Matrix::constructShiftMatrix(s);
-        const auto m2 = Matrix::constructRotateMatrix(r);
-        const auto m3 = Matrix::constructScaleMatrix(sc);
-        return m1 * m2 * m3;
     }
 }

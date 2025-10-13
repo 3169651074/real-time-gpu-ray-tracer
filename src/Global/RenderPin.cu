@@ -121,8 +121,24 @@ namespace renderer {
         for (size_t i = 0; i < instanceCount; i++) {
             Instance & instance = pin_instances[i];
 
-            //设置实例对应的BLAS下标
-            instance.asIndex = blasBuildResultVector.size();
+            instance.asIndex = i;
+
+            //根据实例和几何体的对应关系，设置其他属性
+            switch (instance.primitiveType) {
+#define _setInstanceOtherProp(typeName, arrayName) \
+                case PrimitiveType::typeName: { \
+                    const auto & primitive = geometryDataWithPinPtr.arrayName[instance.primitiveIndex]; \
+                    instance.primitiveCount = primitive.objectPrimitiveCount(); \
+                    instance.boundingBox = primitive.constructBoundingBox(); \
+                    instance.centroid = primitive.centroid(); \
+                } break
+
+                _setInstanceOtherProp(SPHERE, spheres);
+                _setInstanceOtherProp(PARALLELOGRAM, parallelograms);
+                _setInstanceOtherProp(TRIANGLE, triangles);
+#undef _setInstanceOtherProp
+                default:;
+            }
 
             switch (instance.primitiveType) {
                 //构建时设置实例的变换前包围盒和几何中心

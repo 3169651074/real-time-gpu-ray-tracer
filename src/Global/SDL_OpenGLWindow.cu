@@ -20,7 +20,7 @@ namespace renderer {
         SDL_DestroyWindow(window);
     }
 
-    SDL_OpenGLWindow::OGLArgs SDL_OpenGLWindow::initializeOGL(SDL_Window * window) {
+    SDL_OpenGLWindow::OpenGLArgs SDL_OpenGLWindow::initializeOGL(SDL_Window * window) {
         SDL_Log("Initializing OGL...");
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
@@ -99,37 +99,37 @@ namespace renderer {
                 .shaderProgram = shaderProgram
         };
     }
-    void SDL_OpenGLWindow::releaseOGL(SDL_OpenGLWindow::OGLArgs & oglArgs) {
+    void SDL_OpenGLWindow::releaseOGL(SDL_OpenGLWindow::OpenGLArgs & OpenGLArgs) {
         SDL_Log("Cleaning up OGL...");
-        glDeleteVertexArrays(1, &oglArgs.VAO);
-        glDeleteBuffers(1, &oglArgs.VBO);
-        glDeleteBuffers(1, &oglArgs.EBO);
-        glDeleteProgram(oglArgs.shaderProgram);
-        glDeleteTextures(1, &oglArgs.textureID);
+        glDeleteVertexArrays(1, &OpenGLArgs.VAO);
+        glDeleteBuffers(1, &OpenGLArgs.VBO);
+        glDeleteBuffers(1, &OpenGLArgs.EBO);
+        glDeleteProgram(OpenGLArgs.shaderProgram);
+        glDeleteTextures(1, &OpenGLArgs.textureID);
 
-        oglArgs = {};
+        OpenGLArgs = {};
     }
 
-    SDL_OpenGLWindow::CUDAArgs SDL_OpenGLWindow::getCudaResource(SDL_Window * window, const OGLArgs & oglArgs, Uint32 threadsPerBlock) {
+    SDL_OpenGLWindow::CudaArgs SDL_OpenGLWindow::getCudaResource(SDL_Window * window, const OpenGLArgs & OpenGLArgs, Uint32 threadsPerBlock) {
         SDL_Log("Getting Cuda resources...");
         int w, h;
         SDL_GetWindowSize(window, &w, &h);
 
-        CUDAArgs cudaArgs;
-        cudaArgs.blocks = {
+        CudaArgs CudaArgs;
+        CudaArgs.blocks = {
                 static_cast<Uint32>(w % threadsPerBlock == 0 ? w / threadsPerBlock : w / threadsPerBlock + 1),
                 static_cast<Uint32>(h % threadsPerBlock == 0 ? h / threadsPerBlock : h / threadsPerBlock + 1), 1};
-        cudaArgs.threads = {threadsPerBlock, threadsPerBlock, 1};
+        CudaArgs.threads = {threadsPerBlock, threadsPerBlock, 1};
 
         cudaCheckError(cudaGraphicsGLRegisterImage(
-                &cudaArgs.cudaResource, oglArgs.textureID, GL_TEXTURE_2D,
+                &CudaArgs.cudaResource, OpenGLArgs.textureID, GL_TEXTURE_2D,
                 cudaGraphicsRegisterFlagsWriteDiscard));
-        return cudaArgs;
+        return CudaArgs;
     }
-    void SDL_OpenGLWindow::releaseCudaResource(CUDAArgs & cudaArgs) {
+    void SDL_OpenGLWindow::releaseCudaResource(CudaArgs & CudaArgs) {
         SDL_Log("Releasing Cuda resources...");
-        cudaCheckError(cudaGraphicsUnregisterResource(cudaArgs.cudaResource));
-        cudaArgs = {};
+        cudaCheckError(cudaGraphicsUnregisterResource(CudaArgs.cudaResource));
+        CudaArgs = {};
     }
 
     void SDL_OpenGLWindow::getKeyMouseInput(KeyMouseInputArgs & inputArgs) {
@@ -255,24 +255,24 @@ namespace renderer {
         return {isCameraMoved, {retCenter, retTarget}};
     }
 
-    void SDL_OpenGLWindow::mapCudaResource(cudaStream_t stream, SDL_OpenGLWindow::CUDAArgs & cudaArgs) {
-        cudaCheckError(cudaGraphicsMapResources(1, &cudaArgs.cudaResource, stream));
+    void SDL_OpenGLWindow::mapCudaResource(cudaStream_t stream, SDL_OpenGLWindow::CudaArgs & CudaArgs) {
+        cudaCheckError(cudaGraphicsMapResources(1, &CudaArgs.cudaResource, stream));
         cudaArray_t cudaTextureArray;
-        cudaCheckError(cudaGraphicsSubResourceGetMappedArray(&cudaTextureArray, cudaArgs.cudaResource, 0, 0));
+        cudaCheckError(cudaGraphicsSubResourceGetMappedArray(&cudaTextureArray, CudaArgs.cudaResource, 0, 0));
         cudaResourceDesc resDesc {};
         resDesc.resType = cudaResourceTypeArray;
         resDesc.res.array.array = cudaTextureArray;
-        cudaCheckError(cudaCreateSurfaceObject(&cudaArgs.surfaceObject, &resDesc));
+        cudaCheckError(cudaCreateSurfaceObject(&CudaArgs.surfaceObject, &resDesc));
     }
-    void SDL_OpenGLWindow::unmapCudaResource(cudaStream_t stream, SDL_OpenGLWindow::CUDAArgs & cudaArgs) {
-        cudaCheckError(cudaDestroySurfaceObject(cudaArgs.surfaceObject));
-        cudaCheckError(cudaGraphicsUnmapResources(1, &cudaArgs.cudaResource, stream));
+    void SDL_OpenGLWindow::unmapCudaResource(cudaStream_t stream, SDL_OpenGLWindow::CudaArgs & CudaArgs) {
+        cudaCheckError(cudaDestroySurfaceObject(CudaArgs.surfaceObject));
+        cudaCheckError(cudaGraphicsUnmapResources(1, &CudaArgs.cudaResource, stream));
     }
 
-    void SDL_OpenGLWindow::presentFrame(SDL_Window * window, const SDL_OpenGLWindow::OGLArgs & oglArgs) {
-        glUseProgram(oglArgs.shaderProgram);
-        glBindTexture(GL_TEXTURE_2D, oglArgs.textureID);
-        glBindVertexArray(oglArgs.VAO);
+    void SDL_OpenGLWindow::presentFrame(SDL_Window * window, const SDL_OpenGLWindow::OpenGLArgs & OpenGLArgs) {
+        glUseProgram(OpenGLArgs.shaderProgram);
+        glBindTexture(GL_TEXTURE_2D, OpenGLArgs.textureID);
+        glBindVertexArray(OpenGLArgs.VAO);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
         SDL_GL_SwapWindow(window);
     }

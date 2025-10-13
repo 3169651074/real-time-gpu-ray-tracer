@@ -1,7 +1,10 @@
 #include <AS/TLAS.cuh>
 
 namespace renderer {
-    TLASBuildResult TLAS::constructTLAS(Instance * instanceArray, size_t instanceCount) {
+    TLASBuildResult TLAS::constructTLAS(const Instance * instanceArray, size_t instanceCount) {
+        //***此处若对参数数组发生有效排序，则会导致main中对实例对象的按索引的更新出现不匹配，则排序拷贝数组
+        std::vector<Instance> copyInstanceArray(instanceArray, instanceArray + instanceCount);
+
         //二叉树数组
         std::vector<TLASNode> retTree;
         retTree.resize(2 * instanceCount - 1);
@@ -30,11 +33,11 @@ namespace renderer {
                 node.instanceCount = task.instanceCount;
                 node.index = retIndexArray.size();
                 node.boundingBox = constructBoundingBoxForInstanceList(
-                        instanceArray, task.instanceStartIndex,
+                        copyInstanceArray.data(), task.instanceStartIndex,
                         task.instanceStartIndex + task.instanceCount);
                 //添加此节点的每个实例对BLAS的引用信息到索引数组
                 for (size_t i = 0; i < task.instanceCount; i++) {
-                    retIndexArray.push_back(instanceArray[task.instanceStartIndex + i].asIndex);
+                    retIndexArray.push_back(copyInstanceArray[task.instanceStartIndex + i].asIndex);
                 }
             } else {
                 //中间节点
@@ -45,14 +48,14 @@ namespace renderer {
                 //直接操作参数数组
                 const int axis = RandomGenerator::randomInteger(0, 2);
                 std::sort(
-                        instanceArray + (int)task.instanceStartIndex,
-                        instanceArray + (int)(task.instanceStartIndex + task.instanceCount),
+                        copyInstanceArray.begin() + (int)task.instanceStartIndex,
+                        copyInstanceArray.begin() + (int)(task.instanceStartIndex + task.instanceCount),
                         [axis](const Instance & a, const Instance & b)
                         { return a.transformedCentroid[axis] < b.transformedCentroid[axis]; });
 
                 //创建当前节点
                 node.boundingBox = constructBoundingBoxForInstanceList(
-                        instanceArray, task.instanceStartIndex,
+                        copyInstanceArray.data(), task.instanceStartIndex,
                         task.instanceStartIndex + task.instanceCount);
                 node.instanceCount = 0;
                 node.index = leftChildIndex;
