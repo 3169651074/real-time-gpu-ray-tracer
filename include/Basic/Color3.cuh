@@ -3,7 +3,7 @@
 
 #include <Util/Range.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * RGB颜色类，聚合类型
      * 成员访问：

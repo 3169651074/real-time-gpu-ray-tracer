@@ -1,12 +1,12 @@
-#ifndef RENDERERINTERACTIVE_RENDER_CUH
-#define RENDERERINTERACTIVE_RENDER_CUH
+#ifndef RENDERERINTERACTIVE_RENDERERIMPL_CUH
+#define RENDERERINTERACTIVE_RENDERERIMPL_CUH
 
 #include <AS/TLAS.cuh>
 
 #include <Material/Rough.cuh>
 #include <Material/Metal.cuh>
 
-namespace renderer {
+namespace project {
     //几何体数据
     typedef struct SceneGeometryData {
         Sphere * spheres;
@@ -111,7 +111,7 @@ namespace renderer {
      * 释放页面锁定内存
      * 释放其他资源
      */
-    class Renderer {
+    class RendererImpl {
     public:
         // ====== 几何体和材质 ======
         //分配页面锁定内存时，传入的结构体需要设置每种几何体或材质个数，函数设置结构体的指针指向有效内存地址
@@ -199,4 +199,4 @@ namespace renderer {
     extern __global__ void render(const TraverseData * dev_traverseData, cudaSurfaceObject_t surfaceObject);
 }
 
-#endif //RENDERERINTERACTIVE_RENDER_CUH
+#endif //RENDERERINTERACTIVE_RENDERERIMPL_CUH

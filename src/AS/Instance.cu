@@ -1,6 +1,6 @@
 #include <AS/Instance.cuh>
 
-namespace renderer {
+namespace project {
     void Instance::updateTransformArguments(float3 shift, float3 rotate, float3 scale) {
         const auto shiftMatrix = Matrix::constructShiftMatrix(shift);
         const auto rotateMatrix = Matrix::constructRotateMatrix(rotate);

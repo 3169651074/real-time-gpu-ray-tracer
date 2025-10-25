@@ -3,7 +3,7 @@
 
 #include <Basic/Ray.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 粗糙材质类，聚合类型
      * 漫反射光线：在半球内随机选择一个方向作为出射方向

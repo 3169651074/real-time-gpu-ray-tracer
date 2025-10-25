@@ -1,313 +1,114 @@
-#include <Global/Render.cuh>
-#include <Global/SDL_OpenGLWindow.cuh>
-using namespace renderer;
+#include <Global/Renderer.cuh>
+using namespace project;
 
-void initGeoAndMat(SceneGeometryData & geometryDataWithPinPtr, SceneMaterialData & materialDataWithPinPtr) {
-    materialDataWithPinPtr.roughs[0] = {.65, .05, .05};
-    materialDataWithPinPtr.roughs[1] = {.73, .73, .73};
-    materialDataWithPinPtr.roughs[2] = {.12, .45, .15};
-    materialDataWithPinPtr.roughs[3] = {.70, .60, .50};
-    materialDataWithPinPtr.metals[0] = {0.8, 0.85, 0.88, 0.0};
+namespace {
+    //更新每个实例的变换信息
+    void updateInstance(Instance * pin_instances, size_t instanceCount, size_t frameCount) {
+        const static Point3 initialCenter = {0.0, 2.0, 0.0};
+        const float radius = 2.0f;
+        const float speed = 0.02f;
+        const float angle = static_cast<float>(frameCount) * speed;
+        const float3 newCenter = {
+                initialCenter[0] + radius * std::cos(angle) * 1.5f,
+                initialCenter[1] + radius * std::sin(angle) * std::cos(angle),
+                initialCenter[2] + radius * std::sin(angle) * 1.5f
+        };
+        const float3 newCenter2 = {-newCenter.x, newCenter.y,-newCenter.z};
 
-    geometryDataWithPinPtr.spheres[0] = {MaterialType::ROUGH, 3, {0.0, 0, 0.0}, 1000.0};
-    geometryDataWithPinPtr.spheres[1] = {MaterialType::ROUGH, 0, {0.0, 0, 0.0}, 2.0};
-    geometryDataWithPinPtr.parallelograms[0] = {MaterialType::ROUGH, 1, {0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {0.0, 4.0, 0.0}};
-    geometryDataWithPinPtr.triangles[0] = {MaterialType::ROUGH, 2, std::array<Point3, 3>{ Point3{0.0, 0.0, 0.0}, Point3{1.0, 0.0, 1.0}, Point3{0.0, 1.0, 0.0} }};
-}
-
-void initCamera(Camera * pin_camera) {
-    pin_camera->windowWidth = 1200;
-    pin_camera->windowHeight = 800;
-    pin_camera->backgroundColor = {0.7, 0.8, 0.9};
-    pin_camera->cameraCenter = {0.0, 2.0, 10.0};
-    pin_camera->cameraTarget = {0.0, 2.0, 0.0};
-    pin_camera->fov = 90;
-    pin_camera->upDirection = {0.0, 1.0, 0.0};
-    pin_camera->focusDiskRadius = 0.0;
-    pin_camera->sampleRange = 0.5;
-    pin_camera->sampleCount = 1;
-    pin_camera->rayTraceDepth = 10;
-}
-
-void initInstance(Instance * pin_instances, size_t instanceCount) {
-    //设置每个实例和几何体的对应关系
-    pin_instances[0].primitiveType = PrimitiveType::SPHERE;
-    pin_instances[0].primitiveIndex = 0;
-
-    pin_instances[1].primitiveType = PrimitiveType::SPHERE;
-    pin_instances[1].primitiveIndex = 1;
-
-    pin_instances[2].primitiveType = PrimitiveType::PARALLELOGRAM;
-    pin_instances[2].primitiveIndex = 0;
-
-    pin_instances[3].primitiveType = PrimitiveType::TRIANGLE;
-    pin_instances[3].primitiveIndex = 0;
-}
-
-void updateInstance(Instance * pin_instances, size_t instanceCount, size_t frame) {
-    //实时更新每个实例的变换信息
-    const Point3 initialCenter = {0.0, 2.0, 0.0};
-    const float radius = 2.0f;
-    const float speed = 0.02f;
-    const float angle = static_cast<float>(frame) * speed;
-    const float3 newCenter = {
-            initialCenter[0] + radius * std::cos(angle) * 1.5f,
-            initialCenter[1] + radius * std::sin(angle) * std::cos(angle),
-            initialCenter[2] + radius * std::sin(angle) * 1.5f
-    };
-    const float3 newCenter2 = {-newCenter.x, newCenter.y,-newCenter.z};
-
-    pin_instances[0].updateTransformArguments(
-            {0.0, -1000.0, 0.0},
-            {},
-            {1.0, 1.0, 1.0});
-    pin_instances[1].updateTransformArguments(
-            newCenter,
-            {0.0, 0.0, 0.0},
-            {1.0, 1.0, 1.0});
-    pin_instances[2].updateTransformArguments(
-            {-5.0, 0.0, 0.0},
-            {0.0, 0.0, 0.0},
-            {1.0, 1.0, 1.0});
-    pin_instances[3].updateTransformArguments(
-            newCenter2,
-            {static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f, static_cast<float>(frame) * 0.4f},
-            {3.0, 3.0, 3.0});
+        pin_instances[0].updateTransformArguments(
+                {0.0, -1000.0, 0.0},
+                {0.0, 0.0, 0.0},
+                {1.0, 1.0, 1.0});
+        pin_instances[1].updateTransformArguments(
+                newCenter,
+                {0.0, 0.0, 0.0},
+                {1.0, 1.0, 1.0});
+        pin_instances[2].updateTransformArguments(
+                {-5.0, 0.0, 0.0},
+                {0.0, 0.0, 0.0},
+                {1.0, 1.0, 1.0});
+        pin_instances[3].updateTransformArguments(
+                newCenter2,
+                {
+                        static_cast<float>(frameCount) * 0.4f,
+                        static_cast<float>(frameCount) * 0.4f,
+                        static_cast<float>(frameCount) * 0.4f},
+                {3.0, 3.0, 3.0});
+    }
 }
 
 #undef main
-int main(int argc, char * argv[]) {
-    // ====== 初始化 ======
+int main(int args, char * argv[]) {
+    //几何体
+    const std::vector<Sphere> spheres = {
+            {MaterialType::ROUGH, 3, {0.0, 0, 0.0}, 1000.0},
+            {MaterialType::ROUGH, 0, {0.0, 0, 0.0}, 2.0},
+    };
+    const std::vector<Parallelogram> parallelograms = {
+            {MaterialType::ROUGH, 1, {0.0, 0.0, 0.0}, {1.0, 0.0, 1.0}, {0.0, 4.0, 0.0}},
+    };
+    const std::vector<Triangle> triangles {
+            {MaterialType::ROUGH, 2, std::array<Point3, 3>{ Point3{0.0, 0.0, 0.0}, Point3{1.0, 0.0, 1.0}, Point3{0.0, 1.0, 0.0} }},
+    };
+    const GeometryData geoData = {
+            .spheres = spheres,
+            .parallelograms = parallelograms,
+            .triangles = triangles
+    };
 
-    //几何体和材质
-    SceneGeometryData geometryDataWithPinPtr = {
-            .sphereCount = 2,
-            .parallelogramCount = 1,
-            .triangleCount = 1,
+    //材质
+    const std::vector<Rough> roughs = {
+            {.65, .05, .05},
+            {.73, .73, .73},
+            {.12, .45, .15},
+            {.70, .60, .50}
     };
-    SceneMaterialData materialDataWithPinPtr = {
-            .roughCount = 4,
-            .metalCount = 1,
+    const std::vector<Metal> metals = {
+            {0.8, 0.85, 0.88, 0.0}
     };
-    Renderer::allocGeoPinMem(geometryDataWithPinPtr);
-    Renderer::allocMatPinMem(materialDataWithPinPtr);
-    initGeoAndMat(geometryDataWithPinPtr, materialDataWithPinPtr);
-    auto geometryDataWithDevPtr = Renderer::allocGeoGlobMem(nullptr, geometryDataWithPinPtr);
-    auto materialDataWithDevPtr = Renderer::allocMatGlobMem(nullptr, materialDataWithPinPtr);
-    Renderer::copyGeoToGlobMem(nullptr, geometryDataWithDevPtr, geometryDataWithPinPtr);
-    Renderer::copyMatToGlobMem(nullptr, materialDataWithDevPtr, materialDataWithPinPtr);
+    const MaterialData matData = {
+            .roughs = roughs,
+            .metals = metals
+    };
 
     //相机
-    Camera * pin_camera = Renderer::allocCamPinMem();
-    initCamera(pin_camera);
-    Renderer::calculateCameraProperties(pin_camera);
+    const CameraInput camData = {
+            .backgroundColor = {0.7, 0.8, 0.9},
+            .initialCenter = {0.0, 2.0, 10.0},
+            .initialTarget = {0.0, 2.0, 0.0},
+            .fov = 90,
+            .upDirection = {0.0, 1.0, 0.0},
+            .focusDiskRadius = 0.0,
+            .sampleRange = 0.5,
+            .sampleCount = 1,
+            .rayTraceDepth = 10,
+    };
 
-    //实例
-    const size_t instanceCount = 4;
-    Instance * pin_instances[2];
-    Instance * dev_instances[2];
-    for (size_t i = 0; i < 2; i++) {
-        pin_instances[i] = Renderer::allocInstPinMem(instanceCount);
-        cudaCheckError(cudaMalloc(&dev_instances[i], instanceCount * sizeof(Instance)));
-    }
-    initInstance(pin_instances[0], instanceCount);
-    updateInstance(pin_instances[0], instanceCount, 0);
+    //实例映射
+    const std::vector<Pair<PrimitiveType, size_t>> insMapArray = {
+            {PrimitiveType::SPHERE, 0},
+            {PrimitiveType::SPHERE, 1},
+            {PrimitiveType::PARALLELOGRAM, 0},
+            {PrimitiveType::TRIANGLE, 0},
+    };
 
-    //BLAS
-    auto pin_blas = Renderer::buildBLASPinMem(geometryDataWithPinPtr, pin_instances[0], instanceCount);
-    auto dev_blas = Renderer::copyBLASToGlobMem(nullptr, pin_blas);
+    //窗口
+    const WindowInput windowData = {
+            .windowWidth = 1200,
+            .windowHeight = 800,
+            .title = std::string("Test")
+    };
 
-    /*
-     * 当updateInstance不负责构造完整的实例对象时，仅在pin_instances[0]中初始化了实例对象（基础设置和BLAS构建时的属性补全）
-     * pin_instances[1]中没有数据，而双缓冲中需要使用两个实例缓冲区的**基础数据**，因此需要拷贝，且只需在开始前拷贝一次
-     */
-    memcpy(pin_instances[1], pin_instances[0], instanceCount * sizeof(Instance));
+    //初始化资源
+    auto geo = Renderer::commitGeometryData(geoData);
+    auto mat = Renderer::commitMaterialData(matData);
+    auto ins = Renderer::configureInstances(insMapArray, updateInstance);
+    auto as = Renderer::buildAccelerationStructure(geo, ins);
+    auto cam = Renderer::configureCamera(windowData, camData);
 
-    //TLAS
-    size_t currentBufferIndex = 0;
-    TLASArray pin_tlas[2] {};
-    TLASArray dev_tlas[2] {};
+    //启动渲染
+    Renderer::startRender(windowData, geo, mat, ins, as, cam);
 
-    //遍历参数结构体也需要双缓冲
-    TraverseData * dev_traverseData[2];
-    for (auto & i : dev_traverseData) {
-        cudaCheckError(cudaMalloc(&i, sizeof(TraverseData)));
-    }
-
-    cudaEvent_t copyCompleteEvents[2];
-    cudaEvent_t renderCompleteEvents[2];
-    for (size_t i = 0; i < 2; i++) {
-        cudaCheckError(cudaEventCreate(&copyCompleteEvents[i]));
-        cudaCheckError(cudaEventCreate(&renderCompleteEvents[i]));
-    }
-
-    //初始化拷贝流和计算流
-    cudaStream_t copyStream, renderStream;
-    cudaCheckError(cudaStreamCreate(&copyStream));
-    cudaCheckError(cudaStreamCreate(&renderStream));
-
-    //准备第一帧数据
-    pin_tlas[0] = Renderer::buildTLASPinMem(pin_instances[0], instanceCount);
-    dev_tlas[0] = Renderer::copyTLASGlobMem(copyStream, pin_tlas[0]);
-    Renderer::copyInstToGlobMem(copyStream, dev_instances[0], pin_instances[0], instanceCount);
-    Renderer::copyCamToConstMem(copyStream, pin_camera);
-    const auto _traverseData = Renderer::traverseDevPtr(
-            geometryDataWithDevPtr, materialDataWithDevPtr,
-            dev_instances[0],
-            dev_blas, dev_tlas[0]);
-    cudaCheckError(cudaMemcpyAsync(dev_traverseData[0], &_traverseData, sizeof(TraverseData), cudaMemcpyHostToDevice, copyStream));
-    cudaCheckError(cudaEventRecord(copyCompleteEvents[0], copyStream));
-
-    //初始化窗口，OGL，获取CUDA资源
-    auto sdlWindow = SDL_OpenGLWindow::createSDLGLWindow("Test", 1200, 800);
-    auto window = sdlWindow.first;
-    auto OpenGLArgs = SDL_OpenGLWindow::initializeOGL(window);
-
-    SDL_OpenGLWindow::CudaArgs CudaArgs = SDL_OpenGLWindow::getCudaResource(window, OpenGLArgs);
-    SDL_OpenGLWindow::OperateArgs operateArgs = SDL_OpenGLWindow::getOperateArgs(
-            120, 0.001f, 80, 2, 0.05f);
-    SDL_OpenGLWindow::KeyMouseInputArgs inputArgs{};
-
-    // ====== 循环更新 ======
-
-    size_t frameCount = 0;
-    SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_TRUE));
-
-    //初始时渲染第一帧，准备第二帧
-    while (!inputArgs.keyQuit) {
-        //帧数限制：控制主机提交数据的速度
-        const auto frameStartTime = std::chrono::steady_clock::now();
-
-        //确定当前帧用于渲染的缓冲区索引，和下一帧用于更新的缓冲区索引
-        const size_t renderIdx = currentBufferIndex;
-        const size_t updateIdx = (currentBufferIndex + 1) % 2; // !currentBufferIndex
-
-        // ====== 主机：准备下一帧(updateIdx)的数据 ======
-
-        //接收输入并更新相机
-        SDL_OpenGLWindow::getKeyMouseInput(inputArgs);
-        if (inputArgs.keyQuit) { break; }
-        if (inputArgs.mouseClick) {
-            SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_GetRelativeMouseMode() ? SDL_FALSE : SDL_TRUE));
-        }
-        const auto newPos = SDL_OpenGLWindow::calculateNewPosition(
-                operateArgs, inputArgs,
-                pin_camera->cameraCenter, pin_camera->cameraTarget,
-                pin_camera->upDirection, pin_camera->cameraU, pin_camera->cameraV, pin_camera->cameraW);
-        if (newPos.first) {
-            pin_camera->cameraCenter = newPos.second.first;
-            pin_camera->cameraTarget = newPos.second.second;
-            Renderer::calculateCameraProperties(pin_camera);
-        }
-        if (inputArgs.dSpeed != 0) {
-            if (inputArgs.dSpeed > 0) {
-                operateArgs.moveSpeed += operateArgs.moveSpeedChangeStep;
-            } else {
-                operateArgs.moveSpeed = operateArgs.moveSpeed < operateArgs.moveSpeedChangeStep ? 0.0f : operateArgs.moveSpeed - operateArgs.moveSpeedChangeStep;
-            }
-            SDL_Log("Change move speed to %.6f", operateArgs.moveSpeed);
-        }
-        /*
-         * 在后台缓冲区(updateIdx)的页面锁定内存中更新实例和TLAS
-         * 此处updateInstance只更新updateIdx缓冲区的实例对象的变换信息（实例基础信息在循环前已固定）
-         * 实例双缓冲使得此时设备可以读取另一个缓冲区的实例信息
-         */
-        updateInstance(pin_instances[updateIdx], instanceCount, frameCount);
-        //释放上一轮为这个updateIdx分配的TLAS页面锁定内存
-        if (pin_tlas[updateIdx].first.first != nullptr) {
-            Renderer::freeTLASPinMem(pin_tlas[updateIdx]);
-        }
-        pin_tlas[updateIdx] = Renderer::buildTLASPinMem(pin_instances[updateIdx], instanceCount);
-
-        // ====== 拷贝流：异步更新下一帧(updateIdx)的缓冲区 ======
-
-        //让拷贝流等待渲染流完成对该缓冲区的渲染，才能安全地覆写它
-        cudaCheckError(cudaStreamWaitEvent(copyStream, renderCompleteEvents[updateIdx], 0));
-        //释放上一轮为这个updateIdx分配的TLAS设备内存
-        if (dev_tlas[updateIdx].first.first != nullptr) {
-            Renderer::freeTLASGlobMem(copyStream, dev_tlas[updateIdx]);
-        }
-        //异步拷贝实例、TLAS和相机数据到全局内存
-        Renderer::copyInstToGlobMem(copyStream, dev_instances[updateIdx], pin_instances[updateIdx], instanceCount);
-        Renderer::copyCamToConstMem(copyStream, pin_camera);
-        dev_tlas[updateIdx] = Renderer::copyTLASGlobMem(copyStream, pin_tlas[updateIdx]);
-        //设置并异步拷贝下一帧的遍历指针结构体
-        const auto traverseData = Renderer::traverseDevPtr(
-                geometryDataWithDevPtr, materialDataWithDevPtr,
-                dev_instances[updateIdx],
-                dev_blas, dev_tlas[updateIdx]);
-        cudaCheckError(cudaMemcpyAsync(dev_traverseData[updateIdx], &traverseData, sizeof(TraverseData), cudaMemcpyHostToDevice, copyStream));
-        //在当所有拷贝操作都提交后，在拷贝流中记录一个事件
-        cudaCheckError(cudaEventRecord(copyCompleteEvents[updateIdx], copyStream));
-
-        // ====== 渲染流：渲染当前帧(renderIdx) ======
-
-        //让渲染流等待“当前帧数据准备就绪”的事件
-        cudaCheckError(cudaStreamWaitEvent(renderStream, copyCompleteEvents[renderIdx], 0));
-        //映射资源
-        SDL_OpenGLWindow::mapCudaResource(renderStream, CudaArgs);
-        //启动渲染内核，使用当前帧(renderIdx)的TraverseData
-        render<<<CudaArgs.blocks, CudaArgs.threads, 0, renderStream>>>(dev_traverseData[renderIdx], CudaArgs.surfaceObject);
-        //渲染完成后，清理资源 (同样在渲染流上)
-        SDL_OpenGLWindow::unmapCudaResource(renderStream, CudaArgs);
-        //记录当前帧(renderIdx)的渲染已在渲染流上完成
-        cudaCheckError(cudaEventRecord(renderCompleteEvents[renderIdx], renderStream));
-
-        // ====== 显示与交换 ======
-        SDL_OpenGLWindow::presentFrame(window, OpenGLArgs);
-
-        //切换缓冲区索引，为下一轮循环做准备
-        currentBufferIndex = updateIdx;
-        frameCount++;
-
-        //如果本帧工作时间小于目标帧时长，则需要等待
-        const auto workTime = std::chrono::steady_clock::now() - frameStartTime;
-        if (workTime < operateArgs.targetFrameDuration) {
-            const auto timeToWait = operateArgs.targetFrameDuration - workTime;
-            //1. 粗略休眠：如果需要等待的时间较长，先进行一次低CPU占用的线程休眠
-            if (timeToWait > operateArgs.sleepMargin) {
-                std::this_thread::sleep_for(timeToWait - operateArgs.sleepMargin);
-            }
-            //2. 精确自旋：在最后几毫秒进行忙等待，以达到更精确的帧同步
-            while (std::chrono::steady_clock::now() - frameStartTime < operateArgs.targetFrameDuration) {}
-        }
-    }
-
-    // ====== 清理 ======
-    //等待所有工作完成再开始清理
-    cudaCheckError(cudaDeviceSynchronize());
-
-    //释放SDL，OGL和CUDA资源
-    SDL_CheckErrorInt(SDL_SetRelativeMouseMode(SDL_FALSE));
-    SDL_OpenGLWindow::releaseCudaResource(CudaArgs);
-    SDL_OpenGLWindow::releaseOGL(OpenGLArgs);
-    SDL_OpenGLWindow::destroySDLGLWindow(sdlWindow.first, sdlWindow.second);
-
-    //销毁流
-    cudaCheckError(cudaStreamDestroy(copyStream));
-    cudaCheckError(cudaStreamDestroy(renderStream));
-
-    //销毁事件
-    for (size_t i = 0; i < 2; i++) {
-        cudaCheckError(cudaEventDestroy(copyCompleteEvents[i]));
-        cudaCheckError(cudaEventDestroy(renderCompleteEvents[i]));
-    }
-
-    //释放全局内存和页面锁定内存
-    for (size_t i = 0; i < 2; i++) {
-        cudaCheckError(cudaFree(dev_traverseData[i]));
-    }
-    Renderer::freeBLASGlobMem(nullptr, dev_blas);
-    Renderer::freeBLASPinMem(pin_blas);
-
-    for (size_t i = 0; i < 2; i++) {
-        Renderer::freeInstGlobMem(nullptr, dev_instances[i]);
-        Renderer::freeInstPinMem(pin_instances[i]);
-    }
-    Renderer::freeCamPinMem(pin_camera);
-    Renderer::freeMatGlobMem(nullptr, materialDataWithDevPtr);
-    Renderer::freeGeoGlobMem(nullptr, geometryDataWithDevPtr);
-    Renderer::freeMatPinMem(materialDataWithPinPtr);
-    Renderer::freeGeoPinMem(geometryDataWithPinPtr);
-    return 0;
+    //清理资源
+    Renderer::cleanup(geo, mat, as, ins, cam);
 }

@@ -5,7 +5,7 @@
 #include <Geometry/Parallelogram.cuh>
 #include <Geometry/Triangle.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 底层加速结构BVH树类，普通类型
      * 根据图元列表在局部空间构造线性BVH树，存储在BLASNode数组中

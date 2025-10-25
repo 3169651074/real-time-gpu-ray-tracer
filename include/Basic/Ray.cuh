@@ -5,7 +5,7 @@
 #include <Basic/Color3.cuh>
 #include <Util/Matrix.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 光线类，聚合类型
      * 对象操作：

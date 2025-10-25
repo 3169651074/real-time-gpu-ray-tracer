@@ -1,6 +1,6 @@
 #include <Global/SDL_OpenGLWindow.cuh>
 
-namespace renderer {
+namespace project {
 
     Pair<SDL_Window *, SDL_GLContext> SDL_OpenGLWindow::createSDLGLWindow(const char * title, int w, int h, bool isVsync) {
         SDL_Log("Creating SDL window...");

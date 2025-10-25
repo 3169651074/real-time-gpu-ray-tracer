@@ -3,7 +3,7 @@
 
 #include <AS/Instance.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 顶层加速结构BVH树类，普通类型
      * 根据底层加速结构数组构造顶层加速结构
@@ -19,7 +19,7 @@ namespace renderer {
     class TLAS {
     public:
         //叶子节点包含的实例数
-        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 2;
+        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 4;
 
         typedef struct TLASNode {
             /*
@@ -30,7 +30,8 @@ namespace renderer {
 
             /*
              * 如果instanceCount大于0，则为叶子节点
-             * 如果为叶子节点，则index为BLAS索引数组的起始下标
+             * 如果为叶子节点，则index为索引数组的起始下标
+             *   通过此起始下标+偏移量获取索引数组的元素，通过索引数组中元素找到原始实例
              * 如果为中间节点，则index为左子节点的下标
              */
             size_t instanceCount = 0;
@@ -59,13 +60,23 @@ namespace renderer {
     private:
         //构建过程的任务结构体
         typedef struct BuildingTask {
-            //使用起始下标和元素个数表示当前任务包含的实例列表，当只有一个实例时成为叶子节点
+            //使用起始下标和元素个数表示当前任务包含的实例列表，当只有少数实例时成为叶子节点
             size_t instanceStartIndex;
             size_t instanceCount;
 
             //该任务对应的节点在线性数组中的位置
             size_t nodeIndex;
         } BuildingTask;
+
+        //将实例和其在实例数组中的原始索引打包在一起
+        typedef struct InstanceAndIndex {
+            const Instance * instance;
+            size_t originalIndex;
+        } InstanceAndIndex;
+
+        //为多个实例构建合并包围盒（世界空间）
+        static BoundingBox constructBoundingBoxForInstanceList(
+                const std::vector<InstanceAndIndex> & instanceAndIndexArray, size_t startIndex, size_t endIndex);
     };
 
     typedef TLAS::TLASNode TLASNode;

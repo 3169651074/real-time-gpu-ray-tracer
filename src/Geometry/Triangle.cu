@@ -1,6 +1,6 @@
 #include <Geometry/Triangle.cuh>
 
-namespace renderer {
+namespace project {
     __device__ bool Triangle::hit(const Ray & ray, const Range & range, HitRecord & record) const {
         const Vec3 h = ray.direction.cross(e2); //h = d x e2
         //系数行列式

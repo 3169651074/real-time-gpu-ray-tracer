@@ -1,6 +1,6 @@
 #include <AS/BoundingBox.cuh>
 
-namespace renderer {
+namespace project {
     BoundingBox BoundingBox::transformBoundingBox(const Matrix & matrix) const {
         //使用矩阵对包围盒的8个顶点进行变换
         Point3 min{INFINITY, INFINITY, INFINITY};

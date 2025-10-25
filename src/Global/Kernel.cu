@@ -1,6 +1,6 @@
-#include <Global/Render.cuh>
+#include <Global/RendererImpl.cuh>
 
-namespace renderer {
+namespace project {
     __constant__ Camera dev_camera[1];
 
     __device__ Color3 rayColor(const TraverseData * dev_traverseData, const Ray * ray, curandState * state) {

@@ -3,7 +3,7 @@
 
 #include <AS/BLAS.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 实例类，普通类型
      * 实例作为TLAS的节点，不实际存储图元，只存储对BLAS的引用

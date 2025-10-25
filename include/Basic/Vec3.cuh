@@ -3,7 +3,7 @@
 
 #include <Global/Global.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 三维向量类，聚合类型
      * 成员访问：

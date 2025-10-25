@@ -1,9 +1,8 @@
-#include <Global/Render.cuh>
+#include <Global/RendererImpl.cuh>
 
-namespace renderer {
+namespace project {
 #define _mallocHost(type, className, arrayName, countName)       \
     do {                                                         \
-        SDL_Log(#className" count: %zd", type##DataWithPinPtr.countName);\
         if (type##DataWithPinPtr.countName != 0) {               \
             cudaCheckError(cudaHostAlloc(&type##DataWithPinPtr.arrayName, type##DataWithPinPtr.countName * sizeof(className), cudaHostAllocDefault));\
         }                                                        \
@@ -21,16 +20,12 @@ namespace renderer {
 
     // ====== 几何体 ======
 
-    void Renderer::allocGeoPinMem(SceneGeometryData & geometryDataWithPinPtr) {
-        SDL_Log("Allocating pinned memory for geometry data...");
-
+    void RendererImpl::allocGeoPinMem(SceneGeometryData & geometryDataWithPinPtr) {
         _mallocGeoHost(Sphere, spheres, sphereCount);
         _mallocGeoHost(Parallelogram, parallelograms, parallelogramCount);
         _mallocGeoHost(Triangle, triangles, triangleCount);
     }
-    void Renderer::freeGeoPinMem(SceneGeometryData & geometryDataWithPinPtr) {
-        SDL_Log("Freeing pinned memory for geometry data...");
-
+    void RendererImpl::freeGeoPinMem(SceneGeometryData & geometryDataWithPinPtr) {
         _freeGeoHost(spheres);
         _freeGeoHost(parallelograms);
         _freeGeoHost(triangles);
@@ -40,15 +35,11 @@ namespace renderer {
 
     // ====== 材质 ======
 
-    void Renderer::allocMatPinMem(SceneMaterialData & materialDataWithPinPtr) {
-        SDL_Log("Allocating pinned memory for material data...");
-
+    void RendererImpl::allocMatPinMem(SceneMaterialData & materialDataWithPinPtr) {
         _mallocMatHost(Rough, roughs, roughCount);
         _mallocMatHost(Metal, metals, metalCount);
     }
-    void Renderer::freeMatPinMem(SceneMaterialData & materialDataWithPinPtr) {
-        SDL_Log("Freeing pinned memory for material data...");
-
+    void RendererImpl::freeMatPinMem(SceneMaterialData & materialDataWithPinPtr) {
         _freeMatHost(roughs);
         _freeMatHost(metals);
 
@@ -57,33 +48,29 @@ namespace renderer {
 
     // ====== 实例 ======
 
-    Instance * Renderer::allocInstPinMem(size_t instanceCount) {
-        SDL_Log("Allocating pinned memory for instance...");
+    Instance * RendererImpl::allocInstPinMem(size_t instanceCount) {
         Instance * ret;
         cudaCheckError(cudaHostAlloc(&ret, instanceCount * sizeof(Instance), cudaHostAllocDefault));
         return ret;
     }
-    void Renderer::freeInstPinMem(Instance * & pin_instances) {
-        SDL_Log("Freeing pinned memory for instance...");
+    void RendererImpl::freeInstPinMem(Instance * & pin_instances) {
         cudaCheckError(cudaFreeHost(pin_instances));
         pin_instances = nullptr;
     }
 
     // ====== 相机 ======
 
-    Camera * Renderer::allocCamPinMem() {
-        SDL_Log("Allocating pinned memory for camera...");
+    Camera * RendererImpl::allocCamPinMem() {
         Camera * ret;
         cudaCheckError(cudaHostAlloc(&ret, sizeof(Camera), cudaHostAllocDefault));
         return ret;
     }
-    void Renderer::freeCamPinMem(Camera * & pin_camera) {
-        SDL_Log("Freeing pinned memory for camera...");
+    void RendererImpl::freeCamPinMem(Camera * & pin_camera) {
         cudaCheckError(cudaFreeHost(pin_camera));
         pin_camera = {};
     }
 
-    void Renderer::calculateCameraProperties(Camera * pin_camera) {
+    void RendererImpl::calculateCameraProperties(Camera * pin_camera) {
         Camera & cam = *pin_camera;
 
         cam.focusDistance = cam.cameraCenter.distance(cam.cameraTarget);
@@ -109,18 +96,15 @@ namespace renderer {
 
     // ====== BLAS ======
 
-    Pair<BLASArray *, size_t> Renderer::buildBLASPinMem(
+    Pair<BLASArray *, size_t> RendererImpl::buildBLASPinMem(
             const SceneGeometryData & geometryDataWithPinPtr, Instance * pin_instances, size_t instanceCount)
     {
-        SDL_Log("Building BLAS...");
-
         //为每个物体创建一个的BLAS，存储到数组中，当前一个实例对应一个BLAS
         std::vector<BLASBuildResult> blasBuildResultVector;
         blasBuildResultVector.reserve(instanceCount);
 
         for (size_t i = 0; i < instanceCount; i++) {
             Instance & instance = pin_instances[i];
-
             instance.asIndex = i;
 
             //根据实例和几何体的对应关系，设置其他属性
@@ -156,12 +140,9 @@ namespace renderer {
 #undef _buildBLASForGeometry
                 default:;
             }
-            SDL_Log("BLAS for instance [%zd]: Node array length: %zd, index array length: %zd.", i, blasBuildResultVector[i].first.size(), blasBuildResultVector[i].second.size());
         }
 
-        //将加速结构拷贝到页面锁定内存
-        SDL_Log("Allocating and copying BLAS to pinned memory...");
-
+        //将加速结构拷贝到页面锁定内
         //分配指针数组内存
         Pair<BLASArray *, size_t> ret{};
         cudaCheckError(cudaHostAlloc(&ret.first, instanceCount * sizeof(BLASArray), cudaHostAllocDefault));
@@ -182,30 +163,24 @@ namespace renderer {
             cudaCheckError(cudaHostAlloc(&ret.first[i].second.first, blasIndexArrayLength * sizeof(BLASIndex), cudaHostAllocDefault));
             memcpy(ret.first[i].second.first, blasIndexArray, blasIndexArrayLength * sizeof(BLASIndex));
             ret.first[i].second.second = blasIndexArrayLength;
-
-            SDL_Log("Copying BLAS [%zd] to pinned memory...", i);
         }
-        ret.second = instanceCount;
 
+        ret.second = instanceCount;
         return ret;
     }
-    void Renderer::freeBLASPinMem(Pair<BLASArray *, size_t> & blasWithPinPtr) {
-        SDL_Log("Freeing pinned memory for BLAS...");
+    void RendererImpl::freeBLASPinMem(Pair<BLASArray *, size_t> & blasWithPinPtr) {
         for (size_t i = 0; i < blasWithPinPtr.second; i++) {
             cudaCheckError(cudaFreeHost(blasWithPinPtr.first[i].first.first));
             cudaCheckError(cudaFreeHost(blasWithPinPtr.first[i].second.first));
         }
+
         blasWithPinPtr = {};
     }
 
     // ====== TLAS ======
 
-    TLASArray Renderer::buildTLASPinMem(Instance * pin_instances, size_t instanceCount) {
-        //SDL_Log("Building TLAS...");
-
+    TLASArray RendererImpl::buildTLASPinMem(Instance * pin_instances, size_t instanceCount) {
         const TLASBuildResult tlasBuildResult = TLAS::constructTLAS(pin_instances, instanceCount);
-        //SDL_Log("TLAS: Node array length: %zd; Index array length: %zd.", tlasBuildResult.first.size(), tlasBuildResult.second.size());
-        //SDL_Log("Allocating and copying TLAS to pinned memory ...");
 
         const auto & tlasNodeArray = tlasBuildResult.first.data();
         const size_t tlasNodeArrayLength = tlasBuildResult.first.size();
@@ -226,8 +201,7 @@ namespace renderer {
 
         return ret;
     }
-    void Renderer::freeTLASPinMem(TLASArray & tlasWithPinPtr) {
-        //SDL_Log("Freeing pinned memory for TLAS...");
+    void RendererImpl::freeTLASPinMem(TLASArray & tlasWithPinPtr) {
         cudaCheckError(cudaFreeHost(tlasWithPinPtr.first.first));
         cudaCheckError(cudaFreeHost(tlasWithPinPtr.second.first));
         tlasWithPinPtr = {};
@@ -235,7 +209,7 @@ namespace renderer {
 
     // ====== 渲染 ======
 
-    TraverseData Renderer::traverseDevPtr(
+    TraverseData RendererImpl::traverseDevPtr(
             const SceneGeometryData & geometryDataWithDevPtr,
             const SceneMaterialData & materialDataWithDevPtr,
             const Instance * dev_instances,
@@ -243,11 +217,12 @@ namespace renderer {
             const TLASArray & tlasWithDevPtr)
     {
         return {
-                //几何体和材质
+                //几何体
                 .dev_spheres = geometryDataWithDevPtr.spheres,
                 .dev_parallelograms = geometryDataWithDevPtr.parallelograms,
                 .dev_triangles = geometryDataWithDevPtr.triangles,
 
+                //材质
                 .dev_roughs = materialDataWithDevPtr.roughs,
                 .dev_metals = materialDataWithDevPtr.metals,
 

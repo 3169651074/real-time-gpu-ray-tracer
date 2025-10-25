@@ -82,7 +82,7 @@ typedef struct
     int num_windows;
     SDL_Window **windows;
 
-    /* Renderer info */
+    /* RendererImpl info */
     const char *renderdriver;
     Uint32 render_flags;
     SDL_bool skip_renderer;

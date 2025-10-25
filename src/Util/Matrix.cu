@@ -1,6 +1,6 @@
 #include <Util/Matrix.cuh>
 
-namespace renderer {
+namespace project {
     //辅助函数
     __host__ __device__ int eliminateBottomElements(float matrixData[5][9]) {
         //前向消元

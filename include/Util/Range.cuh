@@ -3,7 +3,7 @@
 
 #include <Global/Global.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 范围工具类，聚合类型
      * 构造操作：

@@ -1,6 +1,6 @@
 #include <AS/BLAS.cuh>
 
-namespace renderer {
+namespace project {
     BLASBuildResult BLAS::constructBLAS(
                 const Sphere * spheres, size_t sphereStartIndex, size_t sphereCount,
                 const Parallelogram * parallelograms, size_t parallelogramStartIndex, size_t parallelogramCount,
@@ -49,7 +49,8 @@ namespace renderer {
 
         while (!stack.empty()) {
             //弹出一个任务，根据类型选择不同的处理方式
-            const BuildingTask & task = stack.top();
+            //此处不能按引用，必须按值，否则会导致悬垂引用和未定义行为
+            const BuildingTask task = stack.top();
             stack.pop();
 
             //当前操作的节点，方便访问
@@ -137,9 +138,10 @@ namespace renderer {
 
         while (stackSize > 0) {
             //stack.top + stack.pop：弹出栈顶元素。前置--对应后置++
+            //index为AS节点数组中节点的索引，决定要访问那个节点
             const size_t index = stack[--stackSize];
 
-            //检查光线是否和当前节点的包围盒相交
+            //从节点数组中取出节点（treeArray[index]），检查光线是否和当前节点的包围盒相交
             float t;
             if (!treeArray[index].boundingBox.hit(*ray, currentRange, t)) {
                 //不相交，继续弹元素
@@ -156,7 +158,7 @@ namespace renderer {
                     const PrimitiveType primitiveType = pair.first;
                     const size_t primitiveIndex = pair.second;
 
-                    //根据相交的图元类型访问对应数组中的图元
+                    //根据相交的图元类型访问对应数组中的图元，并调用其hit函数
                     switch (primitiveType) {
 #define _primitiveHitTest(arrayName, typeName)\
                         case PrimitiveType::typeName:\

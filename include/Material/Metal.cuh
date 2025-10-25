@@ -3,7 +3,7 @@
 
 #include <Basic/Ray.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 金属材质类，聚合类型
      * 金属材质不吸收光线，完全反射光线

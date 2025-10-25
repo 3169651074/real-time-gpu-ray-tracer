@@ -4,7 +4,7 @@
 #include <Basic/Point3.cuh>
 #include <Util/Pair.cuh>
 
-namespace renderer {
+namespace project {
     //图元类型枚举
     typedef enum class PrimitiveType {
         SPHERE, PARALLELOGRAM, TRIANGLE

@@ -1,6 +1,6 @@
 #include <Basic/Vec3.cuh>
 
-namespace renderer {
+namespace project {
     //生成每个分量都在指定范围内的随机向量
     Vec3 Vec3::randomVector(float componentMin, float componentMax) {
         Vec3 ret{};

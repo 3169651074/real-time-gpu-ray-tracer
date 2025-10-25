@@ -3,7 +3,7 @@
 
 #include <AS/BoundingBox.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 球体类，普通类型（非聚合类型）
      * 图元构造时传入的位置为图元在局部空间中的位置，只和底层BLAS有关

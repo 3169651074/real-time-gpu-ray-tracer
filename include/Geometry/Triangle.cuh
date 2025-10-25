@@ -3,7 +3,7 @@
 
 #include <AS/BoundingBox.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 三角形类，普通类型
      */

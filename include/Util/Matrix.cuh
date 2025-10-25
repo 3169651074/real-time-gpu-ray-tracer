@@ -3,7 +3,7 @@
 
 #include <Basic/Point3.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 4x4矩阵类，聚合类型
      * 使用二维数组存储矩阵，为行主序：一行的内存连续排列

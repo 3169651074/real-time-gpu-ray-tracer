@@ -22,7 +22,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <API/glad.h>
+#include <OGL/glad.h>
 
 static void* get_proc(const char *namez);
 

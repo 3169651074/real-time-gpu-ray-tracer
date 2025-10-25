@@ -3,7 +3,7 @@
 
 #include <AS/BoundingBox.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 平行四边形类，普通类型
      * 起点为平行四边形在局部空间中的位置

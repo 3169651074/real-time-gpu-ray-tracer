@@ -1,6 +1,6 @@
 #include <Geometry/Parallelogram.cuh>
 
-namespace renderer {
+namespace project {
     __device__ bool Parallelogram::hit(const Ray & ray, const Range & range, HitRecord & record) const {
         const float NDotD = Vec3::dot(normalVector, ray.direction);
         if (MathHelper::floatValueNearZero(NDotD)) {

@@ -34,7 +34,7 @@ endif ()
 add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         src/Global/Main.cu
         include/Global/Global.cuh
-        src/API/glad.c
+        src/OGL/glad.c
         src/Global/Global.cu
         include/Basic/Vec3.cuh
         src/Basic/Vec3.cu
@@ -47,7 +47,7 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         include/Material/Rough.cuh
         include/Basic/BasicTypes.cuh
         include/Geometry/Parallelogram.cuh
-        include/Global/Render.cuh
+        include/Global/RendererImpl.cuh
         include/Material/Metal.cuh
         src/Global/RenderPin.cu
         include/Util/Matrix.cuh
@@ -66,10 +66,10 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         include/Global/SDL_OpenGLWindow.cuh
         src/Global/SDL_OpenGLWindow.cu
         src/Global/RenderGlob.cu
-        include/JSON/json.hpp
-        include/JSON/json_fwd.hpp
         include/Geometry/Triangle.cuh
         src/Geometry/Triangle.cu
+        include/Global/Renderer.cuh
+        src/Global/Renderer.cu
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM
@@ -81,7 +81,4 @@ endif ()
 set_target_properties(${EXECUTABLE_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 #链接SDL2库
-if (WIN32)
-    target_link_libraries(${EXECUTABLE_NAME} PUBLIC SDL2main)
-endif ()
 target_link_libraries(${EXECUTABLE_NAME} PUBLIC SDL2)

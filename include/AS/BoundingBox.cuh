@@ -3,7 +3,7 @@
 
 #include <Basic/Ray.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 轴对齐包围盒，普通类型
      * 包围盒的构造由CPU完成，相交测试由GPU线程完成

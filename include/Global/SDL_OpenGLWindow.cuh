@@ -4,7 +4,7 @@
 #include <Basic/Point3.cuh>
 #include <Util/Pair.cuh>
 
-namespace renderer {
+namespace project {
     class SDL_OpenGLWindow {
     public:
         //创建窗口

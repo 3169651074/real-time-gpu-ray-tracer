@@ -1,6 +1,6 @@
 #include <Geometry/Sphere.cuh>
 
-namespace renderer {
+namespace project {
     __device__ bool Sphere::hit(const Ray & ray, const Range & range, HitRecord & record) const {
         //解一元二次方程，判断光线和球体的交点个数
         const Vec3 cq = Point3::constructVector(ray.origin, center);

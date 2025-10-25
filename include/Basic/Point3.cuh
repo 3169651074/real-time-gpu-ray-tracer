@@ -3,7 +3,7 @@
 
 #include <Basic/Vec3.cuh>
 
-namespace renderer {
+namespace project {
     /*
      * 空间点类，聚合类型
      * 成员访问：

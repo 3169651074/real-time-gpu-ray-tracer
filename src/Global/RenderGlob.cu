@@ -1,6 +1,6 @@
-#include <Global/Render.cuh>
+#include <Global/RendererImpl.cuh>
 
-namespace renderer {
+namespace project {
 #define _mallocGlobal(type, _arrayName, _countName, _className) \
         do {                                                 \
             if (type##DataWithPinPtr._countName != 0) {       \
@@ -29,8 +29,8 @@ namespace renderer {
 
     // ====== 几何体 ======
 
-    SceneGeometryData Renderer::allocGeoGlobMem(cudaStream_t stream, const SceneGeometryData & geometryDataWithPinPtr) {
-        SDL_Log("Allocating global memory for geometry...");
+    SceneGeometryData RendererImpl::allocGeoGlobMem(cudaStream_t stream, const SceneGeometryData & geometryDataWithPinPtr) {
+        //拷贝长度信息
         SceneGeometryData geometryDataWithDevPtr = geometryDataWithPinPtr;
 
         _mallocGeoGlobal(spheres, sphereCount, Sphere);
@@ -39,16 +39,12 @@ namespace renderer {
 
         return geometryDataWithDevPtr;
     }
-    void Renderer::copyGeoToGlobMem(cudaStream_t stream, SceneGeometryData & geometryDataWithDevPtr, const SceneGeometryData & geometryDataWithPinPtr) {
-        SDL_Log("Copying geometry to global memory...");
-
+    void RendererImpl::copyGeoToGlobMem(cudaStream_t stream, SceneGeometryData & geometryDataWithDevPtr, const SceneGeometryData & geometryDataWithPinPtr) {
         _copyGeoToGlobal(spheres, sphereCount, Sphere);
         _copyGeoToGlobal(parallelograms, parallelogramCount, Parallelogram);
         _copyGeoToGlobal(triangles, triangleCount, Triangle);
     }
-    void Renderer::freeGeoGlobMem(cudaStream_t stream, SceneGeometryData & geometryDataWithDevPtr) {
-        SDL_Log("Freeing global memory for geometry...");
-
+    void RendererImpl::freeGeoGlobMem(cudaStream_t stream, SceneGeometryData & geometryDataWithDevPtr) {
         _freeGeoGlobal(spheres);
         _freeGeoGlobal(parallelograms);
         _freeGeoGlobal(triangles);
@@ -58,8 +54,7 @@ namespace renderer {
 
     // ====== 材质 ======
 
-    SceneMaterialData Renderer::allocMatGlobMem(cudaStream_t stream, const SceneMaterialData & materialDataWithPinPtr) {
-        SDL_Log("Allocating global memory for material...");
+    SceneMaterialData RendererImpl::allocMatGlobMem(cudaStream_t stream, const SceneMaterialData & materialDataWithPinPtr) {
         SceneMaterialData materialDataWithDevPtr = materialDataWithPinPtr;
 
         _mallocMatGlobal(roughs, roughCount, Rough);
@@ -67,15 +62,11 @@ namespace renderer {
 
         return materialDataWithDevPtr;
     }
-    void Renderer::copyMatToGlobMem(cudaStream_t stream, SceneMaterialData & materialDataWithDevPtr, const SceneMaterialData & materialDataWithPinPtr) {
-        SDL_Log("Copying material to global memory...");
-
+    void RendererImpl::copyMatToGlobMem(cudaStream_t stream, SceneMaterialData & materialDataWithDevPtr, const SceneMaterialData & materialDataWithPinPtr) {
         _copyMatToGlobal(roughs, roughCount, Rough);
         _copyMatToGlobal(metals, metalCount, Metal);
     }
-    void Renderer::freeMatGlobMem(cudaStream_t stream, SceneMaterialData & materialDataWithDevPtr) {
-        SDL_Log("Freeing global memory for material...");
-
+    void RendererImpl::freeMatGlobMem(cudaStream_t stream, SceneMaterialData & materialDataWithDevPtr) {
         _freeMatGlobal(roughs);
         _freeMatGlobal(metals);
 
@@ -84,26 +75,22 @@ namespace renderer {
 
     // ====== 实例 ======
 
-    Instance * Renderer::allocInstGlobMem(cudaStream_t stream, size_t instanceCount) {
-        //SDL_Log("Allocating global memory for instances...");
+    Instance * RendererImpl::allocInstGlobMem(cudaStream_t stream, size_t instanceCount) {
         Instance * dev_instances;
         cudaCheckError(cudaMallocAsync(&dev_instances, instanceCount * sizeof(Instance), stream));
         return dev_instances;
     }
-    void Renderer::copyInstToGlobMem(cudaStream_t stream, Instance * dev_instances, const Instance * pin_instances, size_t instanceCount) {
-        //SDL_Log("Copying instances to global memory...");
+    void RendererImpl::copyInstToGlobMem(cudaStream_t stream, Instance * dev_instances, const Instance * pin_instances, size_t instanceCount) {
         cudaCheckError(cudaMemcpyAsync(dev_instances, pin_instances, instanceCount * sizeof(Instance), cudaMemcpyHostToDevice, stream));
     }
-    void Renderer::freeInstGlobMem(cudaStream_t stream, Instance * & dev_instances) {
-        //SDL_Log("Freeing global memory for instances...");
+    void RendererImpl::freeInstGlobMem(cudaStream_t stream, Instance * & dev_instances) {
         cudaCheckError(cudaFreeAsync(dev_instances, stream));
         dev_instances = nullptr;
     }
 
     // ====== BLAS ======
 
-    Pair<BLASArray *, size_t> Renderer::copyBLASToGlobMem(cudaStream_t stream, const Pair<BLASArray *, size_t> & pin_blas) {
-        SDL_Log("Allocating and copying BLAS to global memory...");
+    Pair<BLASArray *, size_t> RendererImpl::copyBLASToGlobMem(cudaStream_t stream, const Pair<BLASArray *, size_t> & pin_blas) {
         const size_t blasCount = pin_blas.second;
 
         //分配临时指针数组，BLASArray本身作为指针
@@ -138,8 +125,7 @@ namespace renderer {
 
         return ret;
     }
-    void Renderer::freeBLASGlobMem(cudaStream_t stream, Pair<BLASArray *, size_t> & blasWithDevPtr) {
-        SDL_Log("Freeing global memory for BLAS ...");
+    void RendererImpl::freeBLASGlobMem(cudaStream_t stream, Pair<BLASArray *, size_t> & blasWithDevPtr) {
         const size_t blasCount = blasWithDevPtr.second;
 
         //1. 在主机端创建一个临时数组来接收从设备传回的BLAS指针数组
@@ -164,9 +150,7 @@ namespace renderer {
 
     // ====== TLAS ======
 
-    TLASArray Renderer::copyTLASGlobMem(cudaStream_t stream, const TLASArray & pin_tlas) {
-        //SDL_Log("Allocating and copying TLAS to global memory...");
-
+    TLASArray RendererImpl::copyTLASGlobMem(cudaStream_t stream, const TLASArray & pin_tlas) {
         TLASArray ret{};
         const auto & tlasNodeArray = pin_tlas.first.first;
         const size_t tlasNodeArrayLength = pin_tlas.first.second;
@@ -185,18 +169,16 @@ namespace renderer {
 
         return ret;
     }
-    void Renderer::freeTLASGlobMem(cudaStream_t stream, TLASArray & tlasWithDevPtr) {
-        //SDL_Log("Freeing global memory for TLAS ...");
-
+    void RendererImpl::freeTLASGlobMem(cudaStream_t stream, TLASArray & tlasWithDevPtr) {
         cudaCheckError(cudaFreeAsync(tlasWithDevPtr.first.first, stream));
         cudaCheckError(cudaFreeAsync(tlasWithDevPtr.second.first, stream));
+
         tlasWithDevPtr = {};
     }
 
     // ====== 相机 ======
 
-    void Renderer::copyCamToConstMem(cudaStream_t stream, const Camera * pin_camera) {
-        //SDL_Log("Copying camera to constant memory...");
+    void RendererImpl::copyCamToConstMem(cudaStream_t stream, const Camera * pin_camera) {
         cudaCheckError(cudaMemcpyToSymbolAsync(dev_camera, pin_camera, sizeof(Camera), 0, cudaMemcpyHostToDevice, stream));
     }
 }
