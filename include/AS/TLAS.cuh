@@ -19,7 +19,7 @@ namespace renderer {
     class TLAS {
     public:
         //叶子节点包含的实例数
-        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 4;
+        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 2;
 
         typedef struct TLASNode {
             /*
@@ -66,10 +66,6 @@ namespace renderer {
             //该任务对应的节点在线性数组中的位置
             size_t nodeIndex;
         } BuildingTask;
-
-        //为多个实例构建合并包围盒（世界空间）
-        static BoundingBox constructBoundingBoxForInstanceList(
-                const Instance * instances, size_t startIndex, size_t endIndex);
     };
 
     typedef TLAS::TLASNode TLASNode;
