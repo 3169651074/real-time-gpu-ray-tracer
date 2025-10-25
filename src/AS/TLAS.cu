@@ -28,14 +28,18 @@ namespace project {
         while (!stack.empty()) {
             //弹出一个任务，根据类型选择不同的处理方式
             /*
-             * 此处不能按引用传递：在读取top之后，pop会释放掉原来节点的空间，导致下一次push时，task是悬垂引用，对其访问为未定义行为
-             * 下一次push节点所在内存很可能是上一次pop出来的空间。当第一次push后，新的节点覆盖了task的空间，导致
-             *   task的属性值被修改，从而第二次push中对task属性的读取出现错误
+             * 此处不能按引用传递：在读取top之后，pop会释放掉原来节点的空间，
+             *   导致下一次push时，task是悬垂引用，对其访问为未定义行为
+             * 下一次push节点所在内存很可能是上一次pop出来的空间。当第一次push后，新的节点覆盖了task的空间，
+             *   隐藏地修改了task的属性值，从而第二次push中对task属性的读取出现错误，
+             *   使得子任务分割错误，最终导致AS索引重复和缺失
              * 修改方法：改为按值取元素而不是按引用
              *
-             * 当总实例数量能够被一个叶子节点容纳时，没有触发节点分割逻辑中的push，悬垂引用所在内存没有被修改，可以正常工作
+             * 当总实例数量能够被一个叶子节点容纳时，没有触发节点分割逻辑中的push，
+             *   此时悬垂引用所在内存没有被修改，可以正常工作
              */
             //const BuildingTask & task = stack.top();
+
             const BuildingTask task = stack.top();
             stack.pop();
             TLASNode & node = retTree[task.nodeIndex];
@@ -67,10 +71,10 @@ namespace project {
                         instanceAndIndexArray.begin() + (int)(task.instanceStartIndex + task.instanceCount),
                         [axis](const InstanceAndIndex & a, const InstanceAndIndex & b)
                         { return a.instance->transformedCentroid[axis] < b.instance->transformedCentroid[axis]; });
-                for (size_t i = 0; i < instanceCount; i++) {
+//                for (size_t i = 0; i < instanceCount; i++) {
 //                    SDL_Log("Sort:InstanceArray[%zd]:oriIdx=%zd,asIdx=%zd",i,
 //                            instanceAndIndexArray[i].originalIndex,instanceAndIndexArray[i].instance->asIndex);
-                }
+//                }
 
                 //创建当前节点
                 node.boundingBox = constructBoundingBoxForInstanceList(
@@ -80,9 +84,8 @@ namespace project {
                 node.index = leftChildIndex;
 
                 const size_t middleIndex = task.instanceCount / 2;
-                //SDL_Log("Mid idx=%zd",middleIndex);
 
-                //如果不修改悬垂引用，此版本恰好能工作，因为在push修改内存前读取了内存
+                //如果不修改悬垂引用，此版本恰好能工作，因为在push修改内存前读取了内存，但仍为未定义行为
 //                const BuildingTask rightTask = {
 //                        .instanceStartIndex = task.instanceStartIndex + middleIndex,
 //                        .instanceCount = task.instanceCount - middleIndex,
@@ -117,6 +120,8 @@ namespace project {
 //                        leftTask.nodeIndex);
             }
         }
+
+        //释放多余空间
         retTree.resize(nodeCount);
         retTree.shrink_to_fit();
 
@@ -150,8 +155,11 @@ namespace project {
             if (node.instanceCount > 0) {
                 //叶子节点，遍历此节点所有实例
                 for (size_t i = 0; i < node.instanceCount; i++) {
-                    //取出此叶子节点包含的所有实例
-                    //indexArray包含了实例在原始实例数组（instances）中的索引，因此instances[instanceIndex]取到原始实例
+                    /*
+                     * 取出此叶子节点包含的所有实例
+                     * indexArray包含了实例在原始实例数组（instances）中的索引
+                     *   因此instances[instanceIndex]取到原始实例
+                     */
                     const size_t instanceIndex = indexArray[node.index + i];
                     const Instance & instance = instances[instanceIndex];
 
@@ -168,8 +176,8 @@ namespace project {
                 const size_t leftID = node.index;
                 const size_t rightID = leftID + 1;
                 float tLeft, tRight;
-                treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
-                treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
+                //treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
+                //treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
 
                 const bool hitLeft = treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
                 const bool hitRight = treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);

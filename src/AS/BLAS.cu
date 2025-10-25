@@ -49,7 +49,6 @@ namespace project {
 
         while (!stack.empty()) {
             //弹出一个任务，根据类型选择不同的处理方式
-            //此处不能按引用，必须按值，否则会导致悬垂引用和未定义行为
             const BuildingTask task = stack.top();
             stack.pop();
 
@@ -181,8 +180,8 @@ namespace project {
                 const size_t leftID = node.index;
                 const size_t rightID = leftID + 1;
                 float tLeft, tRight;
-                treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
-                treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
+                //treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
+                //treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);
 
                 const bool hitLeft = treeArray[leftID].boundingBox.hit(*ray, currentRange, tLeft);
                 const bool hitRight = treeArray[rightID].boundingBox.hit(*ray, currentRange, tRight);

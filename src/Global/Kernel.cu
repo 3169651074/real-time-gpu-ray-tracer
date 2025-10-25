@@ -143,7 +143,6 @@ namespace project {
         result *= dev_camera[0].reciprocalSqrtSampleCount * dev_camera[0].reciprocalSqrtSampleCount;
 
         //写入到缓冲区
-        //surface_indirect_functions.h
-        surf2Dwrite(result.castToUchar4(), surfaceObject, x * sizeof(uchar4), y);
+        surf2Dwrite(result.castToUchar4(), surfaceObject, static_cast<int>(x * sizeof(uchar4)), static_cast<int>(y));
     }
 }

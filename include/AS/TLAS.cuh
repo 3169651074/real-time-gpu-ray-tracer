@@ -19,7 +19,7 @@ namespace project {
     class TLAS {
     public:
         //叶子节点包含的实例数
-        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 4;
+        static constexpr size_t INSTANCE_COUNT_PER_LEAF_NODE = 2;
 
         typedef struct TLASNode {
             /*
