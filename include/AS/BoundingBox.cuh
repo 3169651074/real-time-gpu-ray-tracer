@@ -46,14 +46,6 @@ namespace project {
             ensureVolume();
         }
 
-        //使用bounds数组构造包围盒
-        //[x1, x2], [y1, y2], [z1, z2]
-        explicit BoundingBox(const float bounds[6]) {
-            for (size_t i = 0; i < 6; i += 2) {
-                range[i / 2] = Range{bounds[i], bounds[i + 1]};
-            }
-        }
-
         //构造两个包围盒的合并
         BoundingBox(const BoundingBox & b1, const BoundingBox & b2) {
             //合并不会减小包围盒的体积

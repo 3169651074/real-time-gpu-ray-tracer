@@ -50,7 +50,7 @@ int main(int args, char * argv[]) {
     const std::vector<Triangle> triangles {
             {MaterialType::ROUGH, 2, std::array<Point3, 3>{ Point3{0.0, 0.0, 0.0}, Point3{1.0, 0.0, 1.0}, Point3{0.0, 1.0, 0.0} }},
     };
-    const GeometryData geoData = {
+    GeometryData geoData = {
             .spheres = spheres,
             .parallelograms = parallelograms,
             .triangles = triangles
@@ -66,7 +66,7 @@ int main(int args, char * argv[]) {
     const std::vector<Metal> metals = {
             {0.8, 0.85, 0.88, 0.0}
     };
-    const MaterialData matData = {
+    MaterialData matData = {
             .roughs = roughs,
             .metals = metals
     };
@@ -85,7 +85,7 @@ int main(int args, char * argv[]) {
     };
 
     //实例映射
-    const std::vector<Pair<PrimitiveType, size_t>> insMapArray = {
+    std::vector<Pair<PrimitiveType, size_t>> insMapArray = {
             {PrimitiveType::SPHERE, 0},
             {PrimitiveType::SPHERE, 1},
             {PrimitiveType::PARALLELOGRAM, 0},
@@ -100,9 +100,10 @@ int main(int args, char * argv[]) {
     };
 
     //初始化资源
-    auto geo = Renderer::commitGeometryData(geoData);
-    auto mat = Renderer::commitMaterialData(matData);
-    auto ins = Renderer::configureInstances(insMapArray, updateInstance);
+    auto vtk = Renderer::configureVTKFiles("../files/particle_mesh.vtk.series");
+    auto geo = Renderer::commitGeometryData(geoData, &vtk);
+    auto mat = Renderer::commitMaterialData(matData, &vtk);
+    auto ins = Renderer::configureInstances(insMapArray, updateInstance, &vtk);
     auto as = Renderer::buildAccelerationStructure(geo, ins);
     auto cam = Renderer::configureCamera(windowData, camData);
 

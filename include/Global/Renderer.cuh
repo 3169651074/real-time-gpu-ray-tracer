@@ -94,18 +94,36 @@ namespace project {
         void (*updateInstances)(Instance * pin_instances, size_t instanceCount, size_t frameCount);
     } SceneInstanceDataPackage;
 
+    //VTK
+    typedef struct SceneVTKDataPackage {
+        //.series文件路径
+        std::string seriesFilePath;
+
+        //每个vtk文件和其对应时间，数组长度为vtk文件个数
+        std::vector<Pair<std::string, float>> vtkFileAndTimeArray;
+
+        //当前加载的VTK文件的三角形总数，用于调整手动定义的三角形实例索引
+        size_t vtkTriangleCount;
+    } SceneVTKDataPackage;
+
     class Renderer {
     public:
+        //读取.series文件信息，通过.series文件预读取所有参与动画的vtk文件，必须在提交其他信息前调用
+        //当前只读取.series中的第一个VTK文件
+        static SceneVTKDataPackage configureVTKFiles(const std::string & seriesFilePath);
+
         //提交几何体信息
-        static SceneGeometryDataPackage commitGeometryData(const GeometryData & data);
+        static SceneGeometryDataPackage commitGeometryData(GeometryData & data, SceneVTKDataPackage * vtkData = nullptr);
 
         //提交材质信息
-        static SceneMaterialDataPackage commitMaterialData(const MaterialData & data);
+        static SceneMaterialDataPackage commitMaterialData(MaterialData & data, SceneVTKDataPackage * vtkData = nullptr);
 
         //设置实例数量和实例更新函数，每个实例的更新由实例更新函数处理
+        //当前将VTK粒子的三角形图元插入到已有图元列表头部，使得所有三角形实例的图元索引在此函数需要被偏移
         static SceneInstanceDataPackage configureInstances(
-            const std::vector<Pair<PrimitiveType, size_t>> & insMapArray,
-            void (*updateInstances)(Instance * pin_instances, size_t instanceCount, size_t frameCount));
+            std::vector<Pair<PrimitiveType, size_t>> & insMapArray,
+            void (*updateInstances)(Instance * pin_instances, size_t instanceCount, size_t frameCount),
+            const SceneVTKDataPackage * vtkData = nullptr);
 
         //构建加速结构
         static SceneAccelerationStructurePackage buildAccelerationStructure(

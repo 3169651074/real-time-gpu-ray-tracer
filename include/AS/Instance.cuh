@@ -25,7 +25,9 @@ namespace project {
     public:
         //实例指向的物体索引，由调用者指定，asIndex在构建加速结构时计算
         PrimitiveType primitiveType;
+        //实例对应的图元（图元组）在总图元数组中的下标（起始下标）
         size_t primitiveIndex;
+        //实例管理的图元数量
         size_t primitiveCount;
 
         /*

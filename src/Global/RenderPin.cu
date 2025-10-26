@@ -99,7 +99,7 @@ namespace project {
     Pair<BLASArray *, size_t> RendererImpl::buildBLASPinMem(
             const SceneGeometryData & geometryDataWithPinPtr, Instance * pin_instances, size_t instanceCount)
     {
-        //为每个物体创建一个的BLAS，存储到数组中，当前一个实例对应一个BLAS
+        //为每个物体创建一个BLAS，存储到数组中，当前一个实例对应一个BLAS
         std::vector<BLASBuildResult> blasBuildResultVector;
         blasBuildResultVector.reserve(instanceCount);
 
@@ -107,8 +107,9 @@ namespace project {
             Instance & instance = pin_instances[i];
             instance.asIndex = i;
 
-            //根据实例和几何体的对应关系，设置其他属性
-            switch (instance.primitiveType) {
+            if (instance.primitiveCount == 0) {
+                //如果实例没有完全初始化完成，则根据实例和几何体的对应关系，设置其他属性
+                switch (instance.primitiveType) {
 #define _setInstanceOtherProp(typeName, arrayName) \
                 case PrimitiveType::typeName: { \
                     const auto & primitive = geometryDataWithPinPtr.arrayName[instance.primitiveIndex]; \
@@ -117,13 +118,15 @@ namespace project {
                     instance.centroid = primitive.centroid(); \
                 } break
 
-                _setInstanceOtherProp(SPHERE, spheres);
-                _setInstanceOtherProp(PARALLELOGRAM, parallelograms);
-                _setInstanceOtherProp(TRIANGLE, triangles);
+                    _setInstanceOtherProp(SPHERE, spheres);
+                    _setInstanceOtherProp(PARALLELOGRAM, parallelograms);
+                    _setInstanceOtherProp(TRIANGLE, triangles);
 #undef _setInstanceOtherProp
-                default:;
+                    default:;
+                }
             }
 
+            //构建BLAS
             switch (instance.primitiveType) {
                 //构建时设置实例的变换前包围盒和几何中心
 #define _buildBLASForGeometry(type, field, sphereIdx, sphereCount, paraIdx, paraCount, triIdx, triCount) \
@@ -134,9 +137,10 @@ namespace project {
                         geometryDataWithPinPtr.triangles, triIdx, triCount)); \
                     break
 
-                _buildBLASForGeometry(SPHERE, spheres, instance.primitiveIndex, 1, 0, 0, 0, 0);
-                _buildBLASForGeometry(PARALLELOGRAM, parallelograms, 0, 0, instance.primitiveIndex, 1, 0, 0);
-                _buildBLASForGeometry(TRIANGLE, triangles, 0, 0, 0, 0, instance.primitiveIndex, 1);
+                //VTK粒子的实例类型为TRIANGLE，根据instance.primitiveCount自动处理
+                _buildBLASForGeometry(SPHERE, spheres, instance.primitiveIndex, instance.primitiveCount, 0, 0, 0, 0);
+                _buildBLASForGeometry(PARALLELOGRAM, parallelograms, 0, 0, instance.primitiveIndex, instance.primitiveCount, 0, 0);
+                _buildBLASForGeometry(TRIANGLE, triangles, 0, 0, 0, 0, instance.primitiveIndex, instance.primitiveCount);
 #undef _buildBLASForGeometry
                 default:;
             }

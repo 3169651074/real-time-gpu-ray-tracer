@@ -140,7 +140,6 @@ using namespace Microsoft::WRL;
 #include <thread>
 
 #undef INFINITY
-#undef NULL
 
 namespace project {
     // ====== 数值常量 ======

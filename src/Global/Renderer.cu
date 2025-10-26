@@ -1,8 +1,23 @@
 #include <Global/Renderer.cuh>
+#include <Global/VTKReader.cuh>
+#include <JSON/json.hpp>
+#include <fstream>
 #include <Global/SDL_OpenGLWindow.cuh>
+using json = nlohmann::json;
 
 namespace project {
-    SceneGeometryDataPackage Renderer::commitGeometryData(const GeometryData & data) {
+    SceneGeometryDataPackage Renderer::commitGeometryData(GeometryData & data, SceneVTKDataPackage * vtkData) {
+        //读取VTK粒子几何信息
+        if (vtkData != nullptr) {
+            //读取第一个VTK文件
+            const auto vtk = VTKReader::readVTKFile(vtkData->seriesFilePath + vtkData->vtkFileAndTimeArray[0].first);
+            //转换为三角形数组
+            const auto triangles = VTKReader::convertToRendererData(vtk).first;
+            //将三角形数组插入到data.triangles头部
+            data.triangles.insert(data.triangles.begin(), triangles.begin(), triangles.end());
+            vtkData->vtkTriangleCount = triangles.size();
+        }
+
         //为几何体分配页面锁定内存
         SDL_Log("Allocating pinned memory for geometries...");
         SceneGeometryData pin_geoData = {
@@ -24,12 +39,14 @@ namespace project {
         RendererImpl::copyGeoToGlobMem(nullptr, dev_geoData, pin_geoData);
 
         SDL_Log("Geometry data process completed.");
-        return {
-            pin_geoData, dev_geoData
-        };
+        return {pin_geoData, dev_geoData};
     }
 
-    SceneMaterialDataPackage Renderer::commitMaterialData(const MaterialData & data) {
+    SceneMaterialDataPackage Renderer::commitMaterialData(MaterialData & data, SceneVTKDataPackage * vtkData) {
+        if (vtkData != nullptr) {
+            // ...
+        }
+
         SDL_Log("Allocating pinned memory for materials...");
         SceneMaterialData pin_matData = {
                 .roughCount = data.roughs.size(),
@@ -52,20 +69,31 @@ namespace project {
     }
 
     SceneInstanceDataPackage Renderer::configureInstances(
-        const std::vector<Pair<PrimitiveType, size_t>> & insMapArray,
-        void (*updateInstances)(Instance * pin_instances, size_t instanceCount, size_t frameCount))
+        std::vector<Pair<PrimitiveType, size_t>> & insMapArray,
+        void (*updateInstances)(Instance * pin_instances, size_t instanceCount, size_t frameCount),
+        const SceneVTKDataPackage * vtkData)
     {
         const size_t instanceCount = insMapArray.size();
+        size_t vtkInstanceCount = 0;
+        std::vector<Instance> vtkInstances;
+
+        //将VTK实例对象添加到实例数组之后，实例对象在实例数组中存放顺序无影响，存放在后面可以避免修改原有实例映射参数
+        if (vtkData != nullptr) {
+            const auto vtk = VTKReader::readVTKFile(vtkData->seriesFilePath + vtkData->vtkFileAndTimeArray[0].first);
+            vtkInstances = VTKReader::convertToRendererData(vtk).second;
+            vtkInstanceCount = vtkInstances.size();
+        }
+
         SceneInstanceDataPackage insData = {
-                .instanceCount = instanceCount,
+                .instanceCount = instanceCount + vtkInstanceCount, //VTK粒子参与分配内存，但不参与信息计算
                 .updateInstances = updateInstances
         };
 
         //分配实例数组内存
         SDL_Log("Allocating memory for instances...");
         for (size_t i = 0; i < 2; i++) {
-            insData.pin_instanceArrays[i] = RendererImpl::allocInstPinMem(instanceCount);
-            insData.dev_instanceArrays[i] = RendererImpl::allocInstGlobMem(nullptr, instanceCount);
+            insData.pin_instanceArrays[i] = RendererImpl::allocInstPinMem(instanceCount + vtkInstanceCount);
+            insData.dev_instanceArrays[i] = RendererImpl::allocInstGlobMem(nullptr, instanceCount + vtkInstanceCount);
         }
 
         //设置每个实例和几何体的对应关系（只设置页面锁定内存中第一个缓冲实例数组，另一个直接拷贝内存）
@@ -73,9 +101,19 @@ namespace project {
         for (size_t i = 0; i < instanceCount; i++) {
             insData.pin_instanceArrays[0][i].primitiveType = insMapArray[i].first;
             insData.pin_instanceArrays[0][i].primitiveIndex = insMapArray[i].second;
+
+            //如果是三角形类型且有VTK数据，需要调整索引（因为VTK三角形被插入到数组头部）
+            if (vtkData != nullptr && insMapArray[i].first == PrimitiveType::TRIANGLE) {
+                insData.pin_instanceArrays[0][i].primitiveIndex += vtkData->vtkTriangleCount;
+            }
         }
-        //更新实例信息
-        updateInstances(insData.pin_instanceArrays[0], insData.instanceCount, 0);
+        //更新实例信息。instanceCount = 自定义实例数量；insData.instanceCount = 自定义实例数量 + VTK实例数量
+        updateInstances(insData.pin_instanceArrays[0], instanceCount, 0);
+
+        //拷贝VTK实例对象到页面锁定内存
+        if (vtkInstanceCount > 0) {
+            memcpy(insData.pin_instanceArrays[0] + instanceCount, vtkInstances.data(), vtkInstanceCount * sizeof(Instance));
+        }
 
         //只部分初始化了实例数组，需要在构建BLAS后完成对asIndex的赋值，并需要拷贝至另一实例缓冲区和全局内存
         SDL_Log("Instance data pre-init completed.");
@@ -91,7 +129,7 @@ namespace project {
         asData.pin_blasArray = RendererImpl::buildBLASPinMem(
                 geoData.pin_sceneGeometryData,
                 insData.pin_instanceArrays[0],
-                insData.instanceCount);
+                insData.instanceCount); //为所有实例构建BLAS，包括VTK实例
         asData.dev_blasArray = RendererImpl::copyBLASToGlobMem(nullptr, asData.pin_blasArray);
 
         //补全实例信息
@@ -99,6 +137,13 @@ namespace project {
         //拷贝到全局内存，此时页面锁定内存完全初始化，全局内存完全分配但只拷贝一个
         RendererImpl::copyInstToGlobMem(nullptr, insData.dev_instanceArrays[0], insData.pin_instanceArrays[0], insData.instanceCount);
         SDL_Log("Instance initialization completed.");
+
+//        for (size_t i = 0; i < insData.instanceCount; i++) {
+//            SDL_Log("Ins[%zd]:type=%zd,idx=%zd,cnt=%zd",i,
+//                    insData.pin_instanceArrays[0][i].primitiveType,
+//                    insData.pin_instanceArrays[0][i].primitiveIndex,
+//                    insData.pin_instanceArrays[0][i].primitiveCount);
+//        }
 
         SDL_Log("Building TLAS...");
         //TLAS双缓冲，初始时只需要在第一个缓冲区构建即可
@@ -344,5 +389,56 @@ namespace project {
         asData = {};
         insData = {};
         pin_camera = nullptr;
+    }
+
+    SceneVTKDataPackage Renderer::configureVTKFiles(const std::string & seriesFilePath) {
+        SDL_Log("Reading series file: %s", seriesFilePath.c_str());
+
+        //打开 JSON 文件
+        std::ifstream file(seriesFilePath);
+        if (!file.is_open()) {
+            SDL_Log("Could not open the series file!");
+            exit(-1);
+        }
+
+        //解析 JSON 文件
+        json data;
+        try {
+            //使用 parse() 函数将文件流解析成一个 json 对象
+            data = json::parse(file);
+        } catch (json::parse_error & e) {
+            //如果文件内容不是有效的 JSON 格式，会抛出异常
+            SDL_Log("JSON parsing error: %s", e.what());
+            exit(-1);
+        }
+
+        //从 JSON 对象中提取数据
+        const std::string version = data["file-series-version"];
+        SDL_Log("Series file version: %s", version.c_str());
+
+        if (!(data.contains("files") && data["files"].is_array())) {
+            SDL_Log("Failed to parse files array in series file!");
+            exit(-1);
+        }
+
+        std::vector<Pair<std::string, float>> fileEntries;
+        for (const auto & item : data["files"]) {
+            //从数组中的每个对象里提取 "name" 和 "time"
+            const std::string name = item["name"];
+            const float time = item["time"];
+            fileEntries.push_back({name, time});
+        }
+
+        const size_t entryCount = fileEntries.size();
+        const size_t printEntryCount = std::min(entryCount, static_cast<size_t>(5));
+        SDL_Log("Found %zd vtk entries.", entryCount);
+        SDL_Log("First %zd entries:", printEntryCount);
+        for (size_t i = 0; i < printEntryCount; i++) {
+            SDL_Log("Time: %f --> VTK file: %s", fileEntries[i].second, fileEntries[i].first.c_str());
+        }
+        return {
+            .seriesFilePath = seriesFilePath.substr(0, seriesFilePath.size() - std::string("particle_mesh.vtk.series").size()),
+            .vtkFileAndTimeArray = fileEntries
+        };
     }
 }

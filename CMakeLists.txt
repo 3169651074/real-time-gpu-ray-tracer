@@ -20,6 +20,11 @@ set(CMAKE_CUDA_STANDARD 20)
 set(EXECUTABLE_OUTPUT_PATH "${CMAKE_SOURCE_DIR}/bin")
 include_directories("${CMAKE_SOURCE_DIR}/include")
 
+#VTK
+set(VTK_ROOT ${CMAKE_SOURCE_DIR})
+set(VTK_DIR "${VTK_ROOT}/lib/cmake/vtk-9.5")
+find_package(VTK REQUIRED)
+
 #静态链接
 if (WIN32)
     link_directories("${CMAKE_SOURCE_DIR}/lib")
@@ -70,6 +75,8 @@ add_executable(${EXECUTABLE_NAME} #${C_SRCS} ${CPP_SRCS} ${CU_SRCS}
         src/Geometry/Triangle.cu
         include/Global/Renderer.cuh
         src/Global/Renderer.cu
+        include/Global/VTKReader.cuh
+        src/Global/VTKReader.cu
 )
 
 #MSVC编译器必须指定以UTF-8编码读取文件，否则在Windows上需要将所有文件的编码设置为UTF-8 with BOM
@@ -80,5 +87,13 @@ endif ()
 #启用多文件链接支持
 set_target_properties(${EXECUTABLE_NAME} PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-#链接SDL2库
+#链接动态库
 target_link_libraries(${EXECUTABLE_NAME} PUBLIC SDL2)
+target_link_libraries(${EXECUTABLE_NAME} PUBLIC ${VTK_LIBRARIES})
+# VTK 9.0及以上版本需要的自动初始化
+if(VTK_VERSION VERSION_GREATER_EQUAL "9.0")
+    vtk_module_autoinit(
+            TARGETS ${EXECUTABLE_NAME}
+            MODULES ${VTK_LIBRARIES}
+    )
+endif()
