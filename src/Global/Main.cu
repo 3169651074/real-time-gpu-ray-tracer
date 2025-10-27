@@ -14,6 +14,7 @@ namespace {
                 initialCenter[2] + radius * std::sin(angle) * 1.5f
         };
         const float3 newCenter2 = {-newCenter.x, newCenter.y,-newCenter.z};
+        const float3 newCenter3 = {-newCenter.x, newCenter.y + 5.0f, newCenter.z};
 
         pin_instances[0].updateTransformArguments(
                 {0.0, -1000.0, 0.0},
@@ -34,6 +35,10 @@ namespace {
                         static_cast<float>(frameCount) * 0.4f,
                         static_cast<float>(frameCount) * 0.4f},
                 {3.0, 3.0, 3.0});
+        pin_instances[4].updateTransformArguments(
+                newCenter3,
+                {0.0, 0.0, 0.0},
+                {1.0, 1.0, 1.0});
     }
 }
 
@@ -90,6 +95,7 @@ int main(int args, char * argv[]) {
             {PrimitiveType::SPHERE, 1},
             {PrimitiveType::PARALLELOGRAM, 0},
             {PrimitiveType::TRIANGLE, 0},
+            {PrimitiveType::SPHERE, 1}
     };
 
     //窗口
@@ -100,12 +106,21 @@ int main(int args, char * argv[]) {
     };
 
     //初始化资源
+#define LOAD_VTK
+#ifdef LOAD_VTK
     auto vtk = Renderer::configureVTKFiles("../files/particle_mesh.vtk.series");
     auto geo = Renderer::commitGeometryData(geoData, &vtk);
     auto mat = Renderer::commitMaterialData(matData, &vtk);
     auto ins = Renderer::configureInstances(insMapArray, updateInstance, &vtk);
     auto as = Renderer::buildAccelerationStructure(geo, ins);
     auto cam = Renderer::configureCamera(windowData, camData);
+#else
+    auto geo = Renderer::commitGeometryData(geoData);
+    auto mat = Renderer::commitMaterialData(matData);
+    auto ins = Renderer::configureInstances(insMapArray, updateInstance);
+    auto as = Renderer::buildAccelerationStructure(geo, ins);
+    auto cam = Renderer::configureCamera(windowData, camData);
+#endif
 
     //启动渲染
     Renderer::startRender(windowData, geo, mat, ins, as, cam);

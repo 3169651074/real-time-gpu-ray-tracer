@@ -103,12 +103,25 @@ namespace project {
         std::vector<BLASBuildResult> blasBuildResultVector;
         blasBuildResultVector.reserve(instanceCount);
 
+        //创建哈希函数，将实例的类型和实例索引整合为一个键
+        //如果使用无需的unordered_map，Pair需要提供operator==，或者使用std::pair
+        const auto pairHash = [](const std::pair<PrimitiveType, size_t> & p) {
+            //return std::hash<size_t>{}(static_cast<size_t>(p.first)) ^ (std::hash<size_t>{}(p.second) << 1);
+
+            //将enum class的枚举常量转换为整数，使用Boost库的哈希组合方法
+            size_t seed = 0;
+            seed ^= std::hash<size_t>{}(static_cast<size_t>(p.first)) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            seed ^= std::hash<size_t>{}(p.second) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            return seed;
+        };
+        std::unordered_map<std::pair<PrimitiveType, size_t>, size_t, decltype(pairHash)> instanceMap(instanceCount, pairHash);
+
         for (size_t i = 0; i < instanceCount; i++) {
             Instance & instance = pin_instances[i];
-            instance.asIndex = i;
 
+            //如果实例没有完全初始化完成，则根据实例和几何体的对应关系，设置其他属性
+            //无论该实例是否指向已经创建了BLAS的几何体，都需要补全实例信息
             if (instance.primitiveCount == 0) {
-                //如果实例没有完全初始化完成，则根据实例和几何体的对应关系，设置其他属性
                 switch (instance.primitiveType) {
 #define _setInstanceOtherProp(typeName, arrayName) \
                 case PrimitiveType::typeName: { \
@@ -124,6 +137,18 @@ namespace project {
 #undef _setInstanceOtherProp
                     default:;
                 }
+            }
+
+            //检查是否已经为此实例引用的几何体构建了BLAS
+            if (instanceMap.count({instance.primitiveType, instance.primitiveIndex})) {
+                //将此几何体的asIndex赋值给当前实例
+                instance.asIndex = instanceMap.at({instance.primitiveType, instance.primitiveIndex});
+                continue;
+            } else {
+                //使用实际BLAS数量作为索引，而不是实例索引 i
+                instance.asIndex = blasBuildResultVector.size();
+                //将新键值对添加到map
+                instanceMap.insert({{instance.primitiveType, instance.primitiveIndex}, i});
             }
 
             //构建BLAS
@@ -147,12 +172,14 @@ namespace project {
         }
 
         //将加速结构拷贝到页面锁定内
+        const size_t actualBlasCount = blasBuildResultVector.size(); //使用BLAS的实际数量而不是instanceCount
+
         //分配指针数组内存
         Pair<BLASArray *, size_t> ret{};
-        cudaCheckError(cudaHostAlloc(&ret.first, instanceCount * sizeof(BLASArray), cudaHostAllocDefault));
+        cudaCheckError(cudaHostAlloc(&ret.first, actualBlasCount * sizeof(BLASArray), cudaHostAllocDefault));
 
         //逐个BLAS拷贝数据
-        for (size_t i = 0; i < instanceCount; i++) {
+        for (size_t i = 0; i < actualBlasCount; i++) {
             const auto & blasNodeArray = blasBuildResultVector[i].first.data();
             const size_t blasNodeArrayLength = blasBuildResultVector[i].first.size();
             const auto & blasIndexArray = blasBuildResultVector[i].second.data();
@@ -169,7 +196,7 @@ namespace project {
             ret.first[i].second.second = blasIndexArrayLength;
         }
 
-        ret.second = instanceCount;
+        ret.second = actualBlasCount;
         return ret;
     }
     void RendererImpl::freeBLASPinMem(Pair<BLASArray *, size_t> & blasWithPinPtr) {

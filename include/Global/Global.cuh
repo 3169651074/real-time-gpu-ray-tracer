@@ -129,6 +129,7 @@ using namespace Microsoft::WRL;
 #include <array>
 #include <vector>
 #include <stack>
+#include <unordered_map>
 
 #include <cmath>
 #include <cstring>

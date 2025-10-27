@@ -207,17 +207,15 @@ namespace project {
             instances[i].primitiveCount = triangleCount;
             instances[i].boundingBox = BoundingBox(particles[i].bounds[0], particles[i].bounds[1], particles[i].bounds[2]);
             instances[i].centroid = particles[i].centroid;
-            //VTK粒子无需任何动态实例变换，无需使用updateInstances函数
             instances[i].updateTransformArguments(
                     {0.0, 4.0, 0.0},
                     {90.0, 0.0, 0.0},
                     {3.0, 3.0, 3.0}
             );
-
             triangleIndex += triangleCount;
         }
 
-        SDL_Log("VTK data convertion completed.");
+        SDL_Log("VTK data conversion completed.");
         return {triangles, instances};
     }
 }

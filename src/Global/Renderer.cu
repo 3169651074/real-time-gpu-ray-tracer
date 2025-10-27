@@ -102,7 +102,7 @@ namespace project {
             insData.pin_instanceArrays[0][i].primitiveType = insMapArray[i].first;
             insData.pin_instanceArrays[0][i].primitiveIndex = insMapArray[i].second;
 
-            //如果是三角形类型且有VTK数据，需要调整索引（因为VTK三角形被插入到数组头部）
+            //如果是三角形类型且有VTK数据，需要调整索引，指向三角形数组末尾（因为VTK三角形被插入到数组头部）
             if (vtkData != nullptr && insMapArray[i].first == PrimitiveType::TRIANGLE) {
                 insData.pin_instanceArrays[0][i].primitiveIndex += vtkData->vtkTriangleCount;
             }
